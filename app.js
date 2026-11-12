@@ -970,14 +970,14 @@ window.printA4Documents = function () {
   window.print();
 };
 
-function renderDirectorSignatureCard() {
+function renderEvidenceBottomSignature() {
   return `
-    <div class="ev-card-id" style="border: none; background: transparent;">
-      <div class="flex-1 flex flex-col justify-center items-center text-center px-2 text-xs leading-snug text-zinc-900">
-        <div class="mb-5">ขอรับรองว่าเป็นนักเรียนโรงเรียนบ้านส้อเด่นพัฒนาจริง</div>
-        <div>ลงชื่อ .......................................................</div>
-        <div class="font-bold mt-1">( นายนพคุณ เกรียงศักดานุกูล )</div>
-        <div class="text-[11px]">ผู้อำนวยการโรงเรียนบ้านส้อเด่นพัฒนา</div>
+    <div class="mt-2 flex justify-end">
+      <div class="text-center text-[11px] leading-tight text-zinc-900 w-64">
+        <div class="mb-3">ขอรับรองว่าเป็นนักเรียนโรงเรียนบ้านส้อเด่นพัฒนาจริง</div>
+        <div>ลงชื่อ ....................................................</div>
+        <div class="font-bold mt-0.5">( นายนพคุณ เกรียงศักดานุกูล )</div>
+        <div class="text-[10px]">ผู้อำนวยการโรงเรียนบ้านส้อเด่นพัฒนา</div>
       </div>
     </div>
   `;
@@ -1019,10 +1019,6 @@ function getEvidenceCategoryKey(docType) {
 }
 
 function renderEvidenceItemCard(item, theme) {
-  if (item.kind === "director") {
-    return renderDirectorSignatureCard(theme);
-  }
-
   const st = item.student;
   const docType = st.docType || "บัตรประจำตัวประชาชน";
   const catKey = item.catKey;
@@ -1032,10 +1028,10 @@ function renderEvidenceItemCard(item, theme) {
   return `
     <div class="${cardClass}" style="border: 1px solid ${theme.border};">
       <div class="flex justify-between items-center gap-1 px-1 pb-0.5" style="border-bottom: 1px solid ${theme.border}; background: ${theme.light};">
-        <div class="font-bold text-[11px] truncate" style="color: ${theme.text};">
+        <div class="font-bold text-[10px] truncate" style="color: ${theme.text};">
           ${item.orderNo}. ${escapeHtml(st.shortName)} (${escapeHtml(st.className)})
         </div>
-        <div class="text-[10px] text-zinc-600 truncate max-w-[50%] text-right" title="${escapeHtml(item.eventSummary)}">
+        <div class="text-[9px] text-zinc-600 truncate max-w-[50%] text-right" title="${escapeHtml(item.eventSummary)}">
           ${escapeHtml(docType)} • ${escapeHtml(item.eventSummary)}
         </div>
       </div>
@@ -1051,10 +1047,10 @@ function renderEvidenceItemCard(item, theme) {
 }
 
 // Smart A4 Evidence Packer:
-// - Up to 8 ID cards per page (2 cols x 4 rows, 60mm each)
-// - Mixes small ID cards first, then medium House Reg (~2x ID), then large Birth Cert
-// - Places Director signature card (1 ID-card slot) at the very end
-// - No bottom footer on Evidence pages to maximize space
+// - Up to 8 ID cards per page (2 cols x 4 rows, 54mm each = 222mm)
+// - Compact borderless Director signature (22mm) fits right below 8 ID cards on the SAME page (222+22=244mm <= 262mm)
+// - Guarantees signature NEVER orphans onto an extra blank page by itself
+// - Mixes small ID cards first, then House Reg (~2x ID, 106mm), then Birth Cert (114mm)
 function buildEvidencePagesHtml(packageTitle, ageGroup, evidenceItems) {
   if (!evidenceItems || evidenceItems.length === 0) return "";
   const theme = AGE_PRINT_THEMES[ageGroup] || AGE_PRINT_THEMES[10];
@@ -1070,17 +1066,10 @@ function buildEvidencePagesHtml(packageTitle, ageGroup, evidenceItems) {
         eventSummary: entry.eventSummary,
         catKey,
         spanCols: catKey === "id" ? 1 : 2,
-        rowHeight: catKey === "birth" ? 122 : catKey === "house" ? 112 : 60
+        rowHeight: catKey === "birth" ? 114 : catKey === "house" ? 106 : 54
       };
     })
     .sort((a, b) => orderRank[a.catKey] - orderRank[b.catKey] || a.orderNo - b.orderNo);
-
-  // Append Director certification box sized as 1 ID card at the end
-  typedItems.push({
-    kind: "director",
-    spanCols: 1,
-    rowHeight: 60
-  });
 
   // Pack items into grid rows
   const rows = [];
@@ -1093,26 +1082,27 @@ function buildEvidencePagesHtml(packageTitle, ageGroup, evidenceItems) {
     } else {
       const next = typedItems[i + 1];
       if (next && next.spanCols === 1) {
-        rows.push({ height: 60, items: [cur, next] });
+        rows.push({ height: 54, items: [cur, next] });
         i += 2;
       } else {
-        rows.push({ height: 60, items: [cur] });
+        rows.push({ height: 54, items: [cur] });
         i += 1;
       }
     }
   }
 
-  // Pack rows onto A4 pages (usable height ~ 258mm after 11mm top strip + 3mm margin)
-  const MAX_PAGE_HEIGHT = 258;
-  const ROW_GAP = 2.5;
-  const pages = [];
+  // Pack rows onto A4 pages (usable height below top bar = 264mm; signature reserve = 23mm)
+  const MAX_PAGE_HEIGHT = 264;
+  const SIG_HEIGHT = 23;
+  const ROW_GAP = 2;
+  const pages = []; // { rows, height }
   let currentRows = [];
   let currentHeight = 0;
 
   rows.forEach((row) => {
     const added = currentRows.length === 0 ? row.height : row.height + ROW_GAP;
     if (currentRows.length > 0 && currentHeight + added > MAX_PAGE_HEIGHT) {
-      pages.push(currentRows);
+      pages.push({ rows: currentRows, height: currentHeight });
       currentRows = [row];
       currentHeight = row.height;
     } else {
@@ -1120,19 +1110,29 @@ function buildEvidencePagesHtml(packageTitle, ageGroup, evidenceItems) {
       currentHeight += added;
     }
   });
-  if (currentRows.length > 0) pages.push(currentRows);
+  if (currentRows.length > 0) pages.push({ rows: currentRows, height: currentHeight });
+
+  // Prevent signature from bouncing onto an extra page alone:
+  // If last page exceeds MAX_PAGE_HEIGHT - SIG_HEIGHT, move its final row to a new final page with the signature
+  const lastPage = pages[pages.length - 1];
+  if (lastPage && lastPage.height + SIG_HEIGHT > MAX_PAGE_HEIGHT && lastPage.rows.length > 1) {
+    const movedRow = lastPage.rows.pop();
+    lastPage.height -= movedRow.height + ROW_GAP;
+    pages.push({ rows: [movedRow], height: movedRow.height });
+  }
 
   return pages
-    .map((pageRows, pageIdx) => {
-      const cardsHtml = pageRows
+    .map((page, pageIdx) => {
+      const isLast = pageIdx === pages.length - 1;
+      const cardsHtml = page.rows
         .flatMap((r) => r.items)
         .map((item) => renderEvidenceItemCard(item, theme))
         .join("");
 
       return `
       <div class="a4-evidence-page">
-        <!-- Slim top bar only (No bottom footer to fit >= 8 ID cards per page) -->
-        <div class="flex justify-between items-center px-2.5 py-1 rounded mb-2 text-white" style="background: ${theme.gradient};">
+        <!-- Slim top bar only (No bottom footer to maximize space) -->
+        <div class="flex justify-between items-center px-2.5 py-1 rounded mb-1.5 text-white" style="background: ${theme.gradient};">
           <div class="text-xs font-bold truncate">
             ส.ด. 2569 • หลักฐาน: ${escapeHtml(packageTitle)} (แผ่นที่ ${pageIdx + 1}/${pages.length})
           </div>
@@ -1144,6 +1144,8 @@ function buildEvidencePagesHtml(packageTitle, ageGroup, evidenceItems) {
         <div class="evidence-grid">
           ${cardsHtml}
         </div>
+
+        ${isLast ? renderEvidenceBottomSignature() : ""}
       </div>
     `;
     })

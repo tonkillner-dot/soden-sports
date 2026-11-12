@@ -62,11 +62,33 @@
     .evidence-grid {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 2.5mm;
+      gap: 2mm;
     }
 
     .ev-card-id {
-      height: 60mm;
+      height: 54mm;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 1mm 1.5mm;
+      border-radius: 4px;
+      background: #ffffff;
+      overflow: hidden;
+    }
+
+    .ev-img-id {
+      width: 73mm;
+      height: 46mm;
+      max-width: 100%;
+      margin: 0 auto;
+      object-fit: contain;
+      background: #ffffff;
+    }
+
+    .ev-card-house {
+      grid-column: span 2 / span 2;
+      height: 106mm;
       box-sizing: border-box;
       display: flex;
       flex-direction: column;
@@ -77,31 +99,9 @@
       overflow: hidden;
     }
 
-    .ev-img-id {
-      width: 85.6mm;
-      height: 51mm;
-      max-width: 100%;
-      margin: 0 auto;
-      object-fit: contain;
-      background: #ffffff;
-    }
-
-    .ev-card-house {
-      grid-column: span 2 / span 2;
-      height: 112mm;
-      box-sizing: border-box;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      padding: 2mm 2.5mm;
-      border-radius: 4px;
-      background: #ffffff;
-      overflow: hidden;
-    }
-
     .ev-img-house {
-      width: 172mm;
-      height: 100mm;
+      width: 164mm;
+      height: 96mm;
       max-width: 100%;
       margin: 0 auto;
       object-fit: contain;
@@ -110,20 +110,20 @@
 
     .ev-card-birth {
       grid-column: span 2 / span 2;
-      height: 122mm;
+      height: 114mm;
       box-sizing: border-box;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      padding: 2mm 2.5mm;
+      padding: 1.5mm 2mm;
       border-radius: 4px;
       background: #ffffff;
       overflow: hidden;
     }
 
     .ev-img-birth {
-      width: 184mm;
-      height: 110mm;
+      width: 178mm;
+      height: 104mm;
       max-width: 100%;
       margin: 0 auto;
       object-fit: contain;
