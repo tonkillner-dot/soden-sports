@@ -952,14 +952,7 @@ window.printSummarySheet = function () {
 
         ${
           isLast
-            ? `<div class="mt-3 flex justify-end">
-                <div class="border border-dashed border-zinc-400 rounded-lg px-6 py-2.5 text-center text-xs bg-zinc-50/60 w-72">
-                  <div class="mb-5">ขอรับรองว่าเป็นนักเรียนโรงเรียนบ้านส้อเด่นพัฒนาจริง</div>
-                  <div>ลงชื่อ ............................................................</div>
-                  <div class="font-bold mt-0.5">( นายนพคุณ เกรียงศักดานุกูล )</div>
-                  <div>ผู้อำนวยการโรงเรียนบ้านส้อเด่นพัฒนา</div>
-                </div>
-              </div>`
+            ? renderDirectorSingleFooterBox()
             : `<div></div>`
         }
       </div>
@@ -977,30 +970,27 @@ window.printA4Documents = function () {
   window.print();
 };
 
-function renderDirectorSignatureCard(theme) {
+function renderDirectorSignatureCard() {
   return `
-    <div class="ev-card-id" style="border: 1.5px dashed ${theme.primary}; background: ${theme.light};">
-      <div class="text-[11px] font-bold text-center px-1.5 py-0.5 rounded text-white" style="background: ${theme.primary};">
-        คำรับรองจากผู้บริหารสถานศึกษา
-      </div>
-      <div class="flex-1 flex flex-col justify-center items-center text-center px-2 text-[11px] leading-snug text-zinc-800">
-        <div class="font-semibold mb-4">ขอรับรองว่าเป็นนักเรียนโรงเรียนบ้านส้อเด่นพัฒนาจริง</div>
+    <div class="ev-card-id" style="border: none; background: transparent;">
+      <div class="flex-1 flex flex-col justify-center items-center text-center px-2 text-xs leading-snug text-zinc-900">
+        <div class="mb-5">ขอรับรองว่าเป็นนักเรียนโรงเรียนบ้านส้อเด่นพัฒนาจริง</div>
         <div>ลงชื่อ .......................................................</div>
-        <div class="font-bold mt-0.5 text-xs">( นายนพคุณ เกรียงศักดานุกูล )</div>
-        <div class="text-[10px] text-zinc-600">ผู้อำนวยการโรงเรียนบ้านส้อเด่นพัฒนา</div>
+        <div class="font-bold mt-1">( นายนพคุณ เกรียงศักดานุกูล )</div>
+        <div class="text-[11px]">ผู้อำนวยการโรงเรียนบ้านส้อเด่นพัฒนา</div>
       </div>
     </div>
   `;
 }
 
-function renderDirectorSingleFooterBox(theme) {
+function renderDirectorSingleFooterBox() {
   return `
-    <div class="mt-2.5 flex justify-end">
-      <div class="rounded-lg px-5 py-2 text-center text-xs w-72" style="border: 1px dashed ${theme.primary}; background: ${theme.light};">
-        <div class="mb-4 text-zinc-800">ขอรับรองว่าเป็นนักเรียนโรงเรียนบ้านส้อเด่นพัฒนาจริง</div>
-        <div class="text-zinc-800">ลงชื่อ ............................................................</div>
-        <div class="font-bold mt-0.5 text-zinc-900">( นายนพคุณ เกรียงศักดานุกูล )</div>
-        <div class="text-[11px] text-zinc-600">ผู้อำนวยการโรงเรียนบ้านส้อเด่นพัฒนา</div>
+    <div class="mt-3 flex justify-end">
+      <div class="px-4 py-1 text-center text-xs w-72 text-zinc-900">
+        <div class="mb-5">ขอรับรองว่าเป็นนักเรียนโรงเรียนบ้านส้อเด่นพัฒนาจริง</div>
+        <div>ลงชื่อ ............................................................</div>
+        <div class="font-bold mt-0.5">( นายนพคุณ เกรียงศักดานุกูล )</div>
+        <div class="text-[11px]">ผู้อำนวยการโรงเรียนบ้านส้อเด่นพัฒนา</div>
       </div>
     </div>
   `;
@@ -1160,24 +1150,75 @@ function buildEvidencePagesHtml(packageTitle, ageGroup, evidenceItems) {
     .join("");
 }
 
+function renderPortraitPhotoSection(uniqueStudents, theme) {
+  if (!uniqueStudents || uniqueStudents.length === 0) return "";
+  const useFiveCols = uniqueStudents.length > 8;
+  const gridClass = useFiveCols ? "portrait-grid portrait-grid-5" : "portrait-grid portrait-grid-4";
+  const imgClass = useFiveCols ? "portrait-img-md" : "portrait-img-lg";
+
+  const cardsHtml = uniqueStudents
+    .map((st) => {
+      return `
+      <div class="portrait-card">
+        ${
+          st.photoData
+            ? `<img src="${st.photoData}" class="${imgClass}" alt="${escapeHtml(st.shortName)}">`
+            : `<div class="${imgClass} flex items-center justify-center text-[10px] text-zinc-400">ไม่มีรูปถ่าย</div>`
+        }
+        <div class="text-[11px] font-bold text-zinc-900 mt-1 leading-tight">${escapeHtml(st.shortName)}</div>
+      </div>
+    `;
+    })
+    .join("");
+
+  return `
+    <div class="mt-2.5">
+      <div class="text-xs font-bold px-2.5 py-1 rounded text-white inline-block mb-1" style="background: ${theme.primary};">
+        📸 รูปถ่ายนักกีฬา (${uniqueStudents.length} คน)
+      </div>
+      <div class="${gridClass}">
+        ${cardsHtml}
+      </div>
+    </div>
+  `;
+}
+
+function getUniqueStudentsFromRows(rows) {
+  const seen = new Map();
+  rows.forEach((r) => {
+    if (r.student && !seen.has(r.student.id)) {
+      seen.set(r.student.id, r.student);
+    }
+  });
+  return Array.from(seen.values());
+}
+
 function buildRosterTableRowsHtml(rows, theme, showEventCol) {
   if (rows.length === 0) {
-    return `<tr><td colspan="${showEventCol ? 7 : 7}" class="border border-zinc-400 p-3 text-center text-zinc-400">ยังไม่ได้จัดตัวนักกีฬา</td></tr>`;
+    return `<tr><td colspan="${showEventCol ? 7 : 6}" class="border border-zinc-400 p-3 text-center text-zinc-400">ยังไม่ได้จัดตัวนักกีฬา</td></tr>`;
   }
 
   return rows
     .map((r, idx) => {
       const st = r.student;
       if (!st) {
+        if (showEventCol) {
+          return `
+          <tr>
+            <td class="border border-zinc-400 px-1.5 py-1 text-center">${idx + 1}</td>
+            <td class="border border-zinc-400 px-2 py-1 font-semibold text-zinc-600">${escapeHtml(r.labelCol)}</td>
+            <td class="border border-zinc-400 px-1.5 py-1 text-center font-bold">${escapeHtml(r.slotLabel)}</td>
+            <td class="border border-zinc-400 px-2 py-1 text-zinc-400 italic" colspan="4">ยังไม่ได้จัดตัวนักกีฬา</td>
+          </tr>
+        `;
+        }
         return `
-        <tr>
-          <td class="border border-zinc-400 px-1.5 py-1.5 text-center">${idx + 1}</td>
-          <td class="border border-zinc-400 px-2 py-1.5 font-semibold text-zinc-600">${escapeHtml(r.labelCol)}</td>
-          <td class="border border-zinc-400 px-1.5 py-1.5 text-center font-bold">${escapeHtml(r.slotLabel)}</td>
-          <td class="border border-zinc-400 px-1.5 py-1.5 text-center text-zinc-400 text-[10px]">-</td>
-          <td class="border border-zinc-400 px-2 py-1.5 text-zinc-400 italic" colspan="3">ยังไม่ได้จัดตัวนักกีฬา</td>
-        </tr>
-      `;
+          <tr>
+            <td class="border border-zinc-400 px-1.5 py-1 text-center">${idx + 1}</td>
+            <td class="border border-zinc-400 px-1.5 py-1 text-center font-bold">${escapeHtml(r.slotLabel)}</td>
+            <td class="border border-zinc-400 px-2 py-1 text-zinc-400 italic" colspan="4">ยังไม่ได้จัดตัวนักกีฬา</td>
+          </tr>
+        `;
       }
 
       return `
@@ -1185,7 +1226,7 @@ function buildRosterTableRowsHtml(rows, theme, showEventCol) {
         <td class="border border-zinc-400 px-1.5 py-1 text-center font-semibold">${idx + 1}</td>
         ${
           showEventCol
-            ? `<td class="border border-zinc-400 px-2 py-1 text-xs font-semibold text-zinc-800">${escapeHtml(r.labelCol)}</td>`
+            ? `<td class="border border-zinc-400 px-2 py-1 text-xs font-semibold text-zinc-800">${escapeHtml(r.labelCol)} <span class="text-[10px] text-zinc-500 font-normal">(${escapeHtml(r.group)} • ช่อง ${escapeHtml(r.lane)})</span></td>`
             : `<td class="border border-zinc-400 px-1.5 py-1 text-center font-bold" style="color: ${theme.text};">${escapeHtml(r.slotLabel)}</td>`
         }
         ${
@@ -1193,15 +1234,7 @@ function buildRosterTableRowsHtml(rows, theme, showEventCol) {
             ? `<td class="border border-zinc-400 px-1.5 py-1 text-center text-xs font-bold" style="color: ${theme.text};">${escapeHtml(r.slotLabel)}</td>`
             : ""
         }
-        <td class="border border-zinc-400 p-1 text-center">
-          <div class="w-11 h-14 mx-auto border border-zinc-300 bg-white overflow-hidden flex items-center justify-center rounded-sm">
-            ${st.photoData ? `<img src="${st.photoData}" class="w-full h-full object-cover">` : `<span class="text-[9px] text-zinc-400">ไม่มีรูป</span>`}
-          </div>
-        </td>
-        <td class="border border-zinc-400 px-2 py-1 font-semibold text-zinc-900">
-          ${escapeHtml(st.fullName)}
-          ${showEventCol ? `<div class="text-[10px] text-zinc-500">กลุ่ม ${escapeHtml(r.group)} • ช่อง ${escapeHtml(r.lane)}</div>` : ""}
-        </td>
+        <td class="border border-zinc-400 px-2 py-1 font-semibold text-zinc-900">${escapeHtml(st.fullName)}</td>
         <td class="border border-zinc-400 px-1.5 py-1 text-center">${escapeHtml(st.className)}</td>
         <td class="border border-zinc-400 px-1.5 py-1 text-center text-xs">${escapeHtml(st.dob)}</td>
         <td class="border border-zinc-400 px-1.5 py-1 text-center text-xs">${escapeHtml(st.citizenId || "-")}</td>
@@ -1209,6 +1242,64 @@ function buildRosterTableRowsHtml(rows, theme, showEventCol) {
     `;
     })
     .join("");
+}
+
+function buildIndividualTablesHtml(trackRows, fieldRows, theme) {
+  const trackSectionHtml =
+    trackRows.length > 0
+      ? `
+    <div class="mb-2">
+      <div class="text-xs font-bold px-2.5 py-1 rounded-t text-white" style="background: ${theme.primary};">
+        🏃 หมวด ก: ประเภทลู่ (วิ่งเดี่ยว)
+      </div>
+      <table class="w-full border-collapse text-xs">
+        <thead>
+          <tr style="background: ${theme.light}; color: ${theme.text};">
+            <th class="border border-zinc-400 px-1 py-1 w-7">ที่</th>
+            <th class="border border-zinc-400 px-1.5 py-1 w-48">รายการแข่งขัน</th>
+            <th class="border border-zinc-400 px-1 py-1 w-14">ตำแหน่ง</th>
+            <th class="border border-zinc-400 px-1.5 py-1">ชื่อ - นามสกุล</th>
+            <th class="border border-zinc-400 px-1 py-1 w-10">ชั้น</th>
+            <th class="border border-zinc-400 px-1 py-1 w-20">ว/ด/ป เกิด</th>
+            <th class="border border-zinc-400 px-1 py-1 w-28">เลขประชาชน</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${buildRosterTableRowsHtml(trackRows, theme, true)}
+        </tbody>
+      </table>
+    </div>
+  `
+      : "";
+
+  const fieldSectionHtml =
+    fieldRows.length > 0
+      ? `
+    <div class="mb-2">
+      <div class="text-xs font-bold px-2.5 py-1 rounded-t text-white" style="background: ${theme.primary};">
+        🎯 หมวด ข: ประเภทลาน (กระโดดไกล / ทุ่มน้ำหนัก / เตะบอล)
+      </div>
+      <table class="w-full border-collapse text-xs">
+        <thead>
+          <tr style="background: ${theme.light}; color: ${theme.text};">
+            <th class="border border-zinc-400 px-1 py-1 w-7">ที่</th>
+            <th class="border border-zinc-400 px-1.5 py-1 w-48">รายการแข่งขัน</th>
+            <th class="border border-zinc-400 px-1 py-1 w-14">ตำแหน่ง</th>
+            <th class="border border-zinc-400 px-1.5 py-1">ชื่อ - นามสกุล</th>
+            <th class="border border-zinc-400 px-1 py-1 w-10">ชั้น</th>
+            <th class="border border-zinc-400 px-1 py-1 w-20">ว/ด/ป เกิด</th>
+            <th class="border border-zinc-400 px-1 py-1 w-28">เลขประชาชน</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${buildRosterTableRowsHtml(fieldRows, theme, true)}
+        </tbody>
+      </table>
+    </div>
+  `
+      : "";
+
+  return `${trackSectionHtml}${fieldSectionHtml}`;
 }
 
 function renderIndividualPackagePages(ageGroup, gender, trackEvents, fieldEvents, includeEvidence) {
@@ -1246,96 +1337,91 @@ function renderIndividualPackagePages(ageGroup, gender, trackEvents, fieldEvents
   const trackRows = toRowEntries(trackEvents).map((r) => ({ ...r, section: "track" }));
   const fieldRows = toRowEntries(fieldEvents).map((r) => ({ ...r, section: "field" }));
   const allRows = [...trackRows, ...fieldRows];
+  const uniqueStudents = getUniqueStudentsFromRows(allRows);
 
-  // Paginate roster rows if many athletes (> 10 rows per A4 page)
-  const MAX_ROWS_PER_PAGE = 10;
-  const rosterChunks = [];
-  for (let i = 0; i < allRows.length; i += MAX_ROWS_PER_PAGE) {
-    rosterChunks.push(allRows.slice(i, i + MAX_ROWS_PER_PAGE));
-  }
-  if (rosterChunks.length === 0) rosterChunks.push([]);
+  // Estimate whether tables + separated portrait grid + signature fit on 1 A4 page (~270mm)
+  const tablesEstH =
+    22 +
+    (trackRows.length > 0 ? 14 : 0) +
+    (fieldRows.length > 0 ? 14 : 0) +
+    allRows.length * 7;
+  const cols = uniqueStudents.length > 8 ? 5 : 4;
+  const portraitRowsCnt = uniqueStudents.length > 0 ? Math.ceil(uniqueStudents.length / cols) : 0;
+  const portraitsEstH = portraitRowsCnt > 0 ? 10 + portraitRowsCnt * (cols === 4 ? 51 : 45) : 0;
+  const signatureEstH = 26;
 
   let html = "";
-  rosterChunks.forEach((chunk, chunkIdx) => {
-    const isLastRoster = chunkIdx === rosterChunks.length - 1;
-    const chunkTrack = chunk.filter((r) => r.section === "track");
-    const chunkField = chunk.filter((r) => r.section === "field");
 
-    const trackSectionHtml =
-      chunkTrack.length > 0
-        ? `
-      <div class="mb-2.5">
-        <div class="text-xs font-bold px-2.5 py-1 rounded-t text-white" style="background: ${theme.primary};">
-          🏃 หมวด ก: ประเภทลู่ (วิ่งเดี่ยว)
-        </div>
-        <table class="w-full border-collapse text-xs">
-          <thead>
-            <tr style="background: ${theme.light}; color: ${theme.text};">
-              <th class="border border-zinc-400 px-1 py-1 w-7">ที่</th>
-              <th class="border border-zinc-400 px-1.5 py-1 w-40">รายการแข่งขัน</th>
-              <th class="border border-zinc-400 px-1 py-1 w-14">ตำแหน่ง</th>
-              <th class="border border-zinc-400 px-1 py-1 w-14">รูปถ่าย</th>
-              <th class="border border-zinc-400 px-1.5 py-1">ชื่อ - นามสกุล</th>
-              <th class="border border-zinc-400 px-1 py-1 w-10">ชั้น</th>
-              <th class="border border-zinc-400 px-1 py-1 w-20">ว/ด/ป เกิด</th>
-              <th class="border border-zinc-400 px-1 py-1 w-28">เลขประชาชน</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${buildRosterTableRowsHtml(chunkTrack, theme, true)}
-          </tbody>
-        </table>
-      </div>
-    `
-        : "";
-
-    const fieldSectionHtml =
-      chunkField.length > 0
-        ? `
-      <div class="mb-2">
-        <div class="text-xs font-bold px-2.5 py-1 rounded-t text-white" style="background: ${theme.primary};">
-          🎯 หมวด ข: ประเภทลาน (กระโดดไกล / ทุ่มน้ำหนัก / เตะบอล)
-        </div>
-        <table class="w-full border-collapse text-xs">
-          <thead>
-            <tr style="background: ${theme.light}; color: ${theme.text};">
-              <th class="border border-zinc-400 px-1 py-1 w-7">ที่</th>
-              <th class="border border-zinc-400 px-1.5 py-1 w-40">รายการแข่งขัน</th>
-              <th class="border border-zinc-400 px-1 py-1 w-14">ตำแหน่ง</th>
-              <th class="border border-zinc-400 px-1 py-1 w-14">รูปถ่าย</th>
-              <th class="border border-zinc-400 px-1.5 py-1">ชื่อ - นามสกุล</th>
-              <th class="border border-zinc-400 px-1 py-1 w-10">ชั้น</th>
-              <th class="border border-zinc-400 px-1 py-1 w-20">ว/ด/ป เกิด</th>
-              <th class="border border-zinc-400 px-1 py-1 w-28">เลขประชาชน</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${buildRosterTableRowsHtml(chunkField, theme, true)}
-          </tbody>
-        </table>
-      </div>
-    `
-        : "";
-
+  if (tablesEstH + portraitsEstH + signatureEstH <= 270) {
+    // Everything (Top Tables + Large Bottom Portrait Grid + ผอ. Signature) fits on 1 page!
     html += `
       <div class="a4-page">
         <div>
           ${renderFormalHeader(
             theme,
             "แบบส่งรายชื่อนักกรีฑา ประเภทเดี่ยว (แยกลู่และลาน)",
-            `${pkgTitle}${rosterChunks.length > 1 ? ` (หน้า ${chunkIdx + 1}/${rosterChunks.length})` : ""}`,
+            pkgTitle,
             "เชียงกลางเกมส์ ปีการศึกษา 2569"
           )}
-          ${trackSectionHtml}
-          ${fieldSectionHtml}
+          ${buildIndividualTablesHtml(trackRows, fieldRows, theme)}
+          ${renderPortraitPhotoSection(uniqueStudents, theme)}
         </div>
-        ${isLastRoster ? renderDirectorSingleFooterBox(theme) : `<div></div>`}
+        ${renderDirectorSingleFooterBox()}
       </div>
     `;
-  });
+  } else {
+    // Split tables cleanly on page 1a, portraits + signature on page 1b (paginating tables if huge)
+    const MAX_TABLE_ROWS = 24;
+    const chunks = [];
+    for (let i = 0; i < allRows.length; i += MAX_TABLE_ROWS) {
+      chunks.push(allRows.slice(i, i + MAX_TABLE_ROWS));
+    }
+    if (chunks.length === 0) chunks.push([]);
+
+    chunks.forEach((chunk, idx) => {
+      const cTrack = chunk.filter((r) => r.section === "track");
+      const cField = chunk.filter((r) => r.section === "field");
+      html += `
+        <div class="a4-page">
+          <div>
+            ${renderFormalHeader(
+              theme,
+              "แบบส่งรายชื่อนักกรีฑา ประเภทเดี่ยว (แยกลู่และลาน)",
+              `${pkgTitle}${chunks.length > 1 ? ` (ตาราง ${idx + 1}/${chunks.length})` : ""}`,
+              "เชียงกลางเกมส์ ปีการศึกษา 2569"
+            )}
+            ${buildIndividualTablesHtml(cTrack, cField, theme)}
+          </div>
+          ${uniqueStudents.length === 0 && idx === chunks.length - 1 ? renderDirectorSingleFooterBox() : `<div></div>`}
+        </div>
+      `;
+    });
+
+    if (uniqueStudents.length > 0) {
+      // Chunk portraits max 20 per page
+      const MAX_PORTRAITS = 20;
+      for (let p = 0; p < uniqueStudents.length; p += MAX_PORTRAITS) {
+        const pSlice = uniqueStudents.slice(p, p + MAX_PORTRAITS);
+        const isLastP = p + MAX_PORTRAITS >= uniqueStudents.length;
+        html += `
+          <div class="a4-page">
+            <div>
+              ${renderFormalHeader(
+                theme,
+                "รูปถ่ายนักกรีฑา ประเภทเดี่ยว",
+                `${pkgTitle} — รูปถ่ายนักกีฬา`,
+                "เชียงกลางเกมส์ ปีการศึกษา 2569"
+              )}
+              ${renderPortraitPhotoSection(pSlice, theme)}
+            </div>
+            ${isLastP ? renderDirectorSingleFooterBox() : `<div></div>`}
+          </div>
+        `;
+      }
+    }
+  }
 
   if (includeEvidence) {
-    // Deduplicate students across individual events in this (ageGroup, gender) package
     const uniqueMap = new Map();
     [...trackEvents, ...fieldEvents].forEach((ev) => {
       (ev.athletes || []).forEach((a) => {
@@ -1373,6 +1459,7 @@ function renderRelayPackagePages(ev, includeEvidence) {
     lane: ev.lane,
     student: studentsList.find((s) => s.id === a.studentId) || null
   }));
+  const uniqueStudents = getUniqueStudentsFromRows(rosterRows);
 
   let html = `
     <div class="a4-page">
@@ -1389,7 +1476,6 @@ function renderRelayPackagePages(ev, includeEvidence) {
             <tr style="background: ${theme.primary}; color: #ffffff;">
               <th class="border border-zinc-500 px-1.5 py-1.5 w-8">ที่</th>
               <th class="border border-zinc-500 px-1.5 py-1.5 w-16">ตำแหน่ง/ไม้</th>
-              <th class="border border-zinc-500 px-1.5 py-1.5 w-14">รูปถ่าย</th>
               <th class="border border-zinc-500 px-2 py-1.5">ชื่อ - นามสกุล นักเรียน</th>
               <th class="border border-zinc-500 px-1.5 py-1.5 w-12">ชั้น</th>
               <th class="border border-zinc-500 px-1.5 py-1.5 w-24">ว/ด/ป เกิด</th>
@@ -1400,9 +1486,11 @@ function renderRelayPackagePages(ev, includeEvidence) {
             ${buildRosterTableRowsHtml(rosterRows, theme, false)}
           </tbody>
         </table>
+
+        ${renderPortraitPhotoSection(uniqueStudents, theme)}
       </div>
 
-      ${renderDirectorSingleFooterBox(theme)}
+      ${renderDirectorSingleFooterBox()}
     </div>
   `;
 

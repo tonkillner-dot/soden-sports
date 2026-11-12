@@ -130,6 +130,45 @@
       background: #ffffff;
     }
 
+    /* Separated Portrait Grid on Roster Page 1 */
+    .portrait-grid {
+      display: grid;
+      gap: 3mm;
+      margin-top: 2mm;
+    }
+    .portrait-grid-4 {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+    .portrait-grid-5 {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+    .portrait-card {
+      border: 1px solid #d4d4d8;
+      border-radius: 4px;
+      padding: 1.5mm;
+      background: #ffffff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+    .portrait-img-lg {
+      width: 30mm;
+      height: 40mm;
+      object-fit: cover;
+      border: 1px solid #e4e4e7;
+      border-radius: 2px;
+      background: #f4f4f5;
+    }
+    .portrait-img-md {
+      width: 26mm;
+      height: 34.5mm;
+      object-fit: cover;
+      border: 1px solid #e4e4e7;
+      border-radius: 2px;
+      background: #f4f4f5;
+    }
+
     @media print {
       body {
         background: #ffffff !important;
@@ -382,7 +421,7 @@
       <div class="no-print master-banner p-4 flex flex-wrap justify-between items-center gap-3 shadow-sm">
         <div>
           <h2 class="text-xl font-bold text-white">🖨️ จัดหน้าเอกสาร A4 พร้อมหลักฐานสำหรับปริ้นส่ง</h2>
-          <p class="text-sm text-orange-100">แยกหน้า 1 (รายชื่อ+รูปหน้าตรง) กับหน้า 2+ (หลักฐานล้วน 8 ใบ/หน้า) • แยกสี 4 รุ่นอายุ • รวมเดี่ยวแยกชาย-หญิง ลู่/ลาน • ผอ. เซ็นรับรองคนเดียว</p>
+          <p class="text-sm text-orange-100">แยกหน้า 1 (ตารางรายชื่อบน + รูปหน้าตรงใหญ่ล่าง) กับหน้า 2+ (หลักฐาน 8 ใบ/หน้า) • แยกสี 4 รุ่นอายุ • ผอ. เซ็นรับรองคนเดียว</p>
         </div>
         <button onclick="printA4Documents()" class="bg-white text-orange-700 hover:bg-orange-50 font-bold px-4 py-2 rounded-lg shadow flex items-center gap-2 text-sm sm:text-base">
           🖨️ สั่งพิมพ์ / บันทึกเป็น PDF
