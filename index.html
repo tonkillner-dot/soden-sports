@@ -11,18 +11,18 @@
   <style>
     body {
       font-family: 'TH Sarabun New', 'Sarabun', sans-serif;
-      background-color: #f1f5f9;
-      color: #0f172a;
+      background-color: #f4f4f5;
+      color: #27272a;
     }
 
-    /* Master Theme Banner */
+    /* Orange & Gray Web Theme Banner */
     .master-banner {
-      background: linear-gradient(135deg, #1e3a8a, #2563eb);
+      background: linear-gradient(135deg, #c2410c, #ea580c);
       color: #ffffff;
       border-radius: 8px;
     }
     .ch-badge {
-      background-color: #1e3a8a;
+      background-color: #3f3f46;
       color: #ffffff;
       border-radius: 4px;
       padding: 2px 10px;
@@ -32,7 +32,7 @@
     /* Print A4 Exact Layout */
     @page {
       size: A4 portrait;
-      margin: 10mm 12mm 10mm 12mm;
+      margin: 7mm 9mm 7mm 9mm;
     }
 
     .a4-page {
@@ -40,12 +40,94 @@
       width: 210mm;
       min-height: 297mm;
       margin: 0 auto 16px auto;
-      padding: 10mm 12mm;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+      padding: 7mm 9mm;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
       box-sizing: border-box;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
+    }
+
+    .a4-evidence-page {
+      background: #ffffff;
+      width: 210mm;
+      min-height: 297mm;
+      margin: 0 auto 16px auto;
+      padding: 7mm 9mm;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+      box-sizing: border-box;
+      display: block;
+    }
+
+    .evidence-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 2.5mm;
+    }
+
+    .ev-card-id {
+      height: 60mm;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 1.5mm 2mm;
+      border-radius: 4px;
+      background: #ffffff;
+      overflow: hidden;
+    }
+
+    .ev-img-id {
+      width: 85.6mm;
+      height: 51mm;
+      max-width: 100%;
+      margin: 0 auto;
+      object-fit: contain;
+      background: #ffffff;
+    }
+
+    .ev-card-house {
+      grid-column: span 2 / span 2;
+      height: 112mm;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 2mm 2.5mm;
+      border-radius: 4px;
+      background: #ffffff;
+      overflow: hidden;
+    }
+
+    .ev-img-house {
+      width: 172mm;
+      height: 100mm;
+      max-width: 100%;
+      margin: 0 auto;
+      object-fit: contain;
+      background: #ffffff;
+    }
+
+    .ev-card-birth {
+      grid-column: span 2 / span 2;
+      height: 122mm;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 2mm 2.5mm;
+      border-radius: 4px;
+      background: #ffffff;
+      overflow: hidden;
+    }
+
+    .ev-img-birth {
+      width: 184mm;
+      height: 110mm;
+      max-width: 100%;
+      margin: 0 auto;
+      object-fit: contain;
+      background: #ffffff;
     }
 
     @media print {
@@ -57,15 +139,36 @@
       .no-print {
         display: none !important;
       }
+      body[data-print-target="summary"] #tab-print {
+        display: none !important;
+      }
+      body[data-print-target="summary"] #summaryPrintArea {
+        display: block !important;
+      }
+      body:not([data-print-target="summary"]) #summaryPrintArea {
+        display: none !important;
+      }
       .a4-page {
         width: 100% !important;
-        min-height: 277mm !important;
+        min-height: 279mm !important;
         margin: 0 !important;
         padding: 0 !important;
         box-shadow: none !important;
         page-break-after: always;
+        break-inside: avoid;
       }
-      .a4-page:last-child {
+      .a4-evidence-page {
+        width: 100% !important;
+        min-height: 0 !important;
+        height: auto !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        box-shadow: none !important;
+        page-break-after: always;
+        break-inside: avoid;
+      }
+      .a4-page:last-child,
+      .a4-evidence-page:last-child {
         page-break-after: avoid;
       }
       * {
@@ -75,20 +178,27 @@
     }
   </style>
 </head>
-<body class="min-h-screen flex flex-col">
+<body class="min-h-screen flex flex-col" data-print-target="a4">
 
   <!-- Top Navigation (Hidden when Printing) -->
-  <header class="no-print bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+  <header class="no-print bg-white border-b border-zinc-300 sticky top-0 z-30 shadow-sm">
     <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
       <div class="flex items-center gap-3">
-        <span class="ch-badge text-sm sm:text-base">ส.ด. 2569</span>
+        <span class="bg-orange-600 text-white font-bold px-2.5 py-1 rounded text-sm sm:text-base shadow-sm">ส.ด. 2569</span>
         <div>
-          <h1 class="text-lg sm:text-xl font-bold text-blue-900 leading-tight">ระบบลงทะเบียนและรายงานผลกรีฑา</h1>
-          <p class="text-xs sm:text-sm text-slate-500">โรงเรียนบ้านส้อเด่นพัฒนา • ผู้ฝึกสอน: ครูนภรัฐ อุดเต็น (ครูต้น)</p>
+          <h1 class="text-lg sm:text-xl font-bold text-zinc-800 leading-tight">ระบบลงทะเบียนและรายงานผลกรีฑา</h1>
+          <p class="text-xs sm:text-sm text-zinc-500">โรงเรียนบ้านส้อเด่นพัฒนา • ผู้ดูแลระบบ: ครูนภรัฐ อุดเต็น (ครูต้น)</p>
         </div>
       </div>
 
-      <div class="flex items-center gap-2">
+      <div class="flex flex-wrap items-center gap-2">
+        <!-- Active Teacher Name Input for Collaborative Lineup -->
+        <div class="flex items-center gap-1.5 bg-zinc-100 border border-zinc-300 rounded-lg px-2.5 py-1">
+          <span class="text-xs font-bold text-zinc-700">👤 ชื่อครูผู้จัด:</span>
+          <input id="teacherNameInput" type="text" placeholder="ระบุชื่อครู..." onchange="saveTeacherName(this.value)"
+            class="bg-white border border-zinc-300 rounded px-2 py-0.5 text-xs font-semibold text-zinc-800 w-36 focus:outline-none focus:ring-2 focus:ring-orange-500">
+        </div>
+
         <span id="syncStatus" class="text-xs px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 font-medium">
           ⏳ กำลังเชื่อมต่อฐานข้อมูล...
         </span>
@@ -96,18 +206,21 @@
     </div>
 
     <!-- Navigation Tabs -->
-    <div class="max-w-7xl mx-auto px-4 flex gap-1 overflow-x-auto border-t border-slate-100 bg-slate-50/70">
-      <button onclick="switchTab('upload')" id="tab-btn-upload" class="tab-btn px-4 py-2.5 text-sm sm:text-base font-semibold border-b-2 border-blue-700 text-blue-800 whitespace-nowrap">
-        📸 1. อัปโหลดรูปและหลักฐาน (ครูประจำชั้น)
+    <div class="max-w-7xl mx-auto px-4 flex gap-1 overflow-x-auto border-t border-zinc-200 bg-zinc-100/80">
+      <button onclick="switchTab('upload')" id="tab-btn-upload" class="tab-btn px-4 py-2.5 text-sm sm:text-base font-semibold border-b-2 border-orange-600 text-orange-700 bg-white whitespace-nowrap">
+        📸 1. อัปโหลดรูปและหลักฐาน
       </button>
-      <button onclick="switchTab('lineup')" id="tab-btn-lineup" class="tab-btn px-4 py-2.5 text-sm sm:text-base font-semibold border-b-2 border-transparent text-slate-600 hover:text-blue-700 whitespace-nowrap">
-        🏃 2. จัดตัวนักกีฬา 50 รายการ (ครูต้น)
+      <button onclick="switchTab('lineup')" id="tab-btn-lineup" class="tab-btn px-4 py-2.5 text-sm sm:text-base font-semibold border-b-2 border-transparent text-zinc-600 hover:text-orange-700 whitespace-nowrap">
+        🏃 2. จัดตัวนักกีฬา (50 รายการ)
       </button>
-      <button onclick="switchTab('print')" id="tab-btn-print" class="tab-btn px-4 py-2.5 text-sm sm:text-base font-semibold border-b-2 border-transparent text-slate-600 hover:text-blue-700 whitespace-nowrap">
-        🖨️ 3. พิมพ์เอกสาร A4 พร้อมหลักฐาน
+      <button onclick="switchTab('summary')" id="tab-btn-summary" class="tab-btn px-4 py-2.5 text-sm sm:text-base font-semibold border-b-2 border-transparent text-zinc-600 hover:text-orange-700 whitespace-nowrap">
+        📊 3. สรุปนักกีฬาทุกคน
       </button>
-      <button onclick="switchTab('results')" id="tab-btn-results" class="tab-btn px-4 py-2.5 text-sm sm:text-base font-semibold border-b-2 border-transparent text-slate-600 hover:text-blue-700 whitespace-nowrap">
-        🏆 4. บันทึกผล & สรุปเหรียญสด
+      <button onclick="switchTab('print')" id="tab-btn-print" class="tab-btn px-4 py-2.5 text-sm sm:text-base font-semibold border-b-2 border-transparent text-zinc-600 hover:text-orange-700 whitespace-nowrap">
+        🖨️ 4. พิมพ์เอกสาร A4 พร้อมหลักฐาน
+      </button>
+      <button onclick="switchTab('results')" id="tab-btn-results" class="tab-btn px-4 py-2.5 text-sm sm:text-base font-semibold border-b-2 border-transparent text-zinc-600 hover:text-orange-700 whitespace-nowrap">
+        🏆 5. บันทึกผล & สรุปเหรียญสด
       </button>
     </div>
   </header>
@@ -120,16 +233,16 @@
       <div class="master-banner p-4 flex flex-wrap justify-between items-center gap-2 shadow-sm">
         <div>
           <h2 class="text-xl font-bold text-white">📸 อัปโหลดรูปถ่ายและหลักฐานนักเรียน (ครูประจำชั้น)</h2>
-          <p class="text-sm text-blue-100">เลือกห้องเรียน แล้วอัปโหลดรูปหน้าตรง + หลักฐาน (บัตร ปชช. / ทะเบียนบ้าน / สูติบัตร) ระบบครอปและบีบอัดให้อัตโนมัติ</p>
+          <p class="text-sm text-orange-100">เลือกห้องเรียน แล้วอัปโหลดรูปหน้าตรง + หลักฐาน (บัตร ปชช. / ทะเบียนบ้าน / สูติบัตร) ระบบครอปและบีบอัดให้อัตโนมัติ</p>
         </div>
-        <div id="uploadProgressBadge" class="bg-white/20 px-3 py-1.5 rounded-lg text-sm font-semibold">
+        <div id="uploadProgressBadge" class="bg-zinc-900/30 px-3 py-1.5 rounded-lg text-sm font-semibold">
           กำลังโหลด...
         </div>
       </div>
 
       <!-- Class Filter Buttons -->
-      <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex flex-wrap items-center gap-2">
-        <span class="text-sm font-bold text-slate-700 mr-1">เลือกชั้นเรียน:</span>
+      <div class="bg-white p-3 rounded-xl border border-zinc-200 shadow-sm flex flex-wrap items-center gap-2">
+        <span class="text-sm font-bold text-zinc-700 mr-1">เลือกชั้นเรียน:</span>
         <div id="classFilterButtons" class="flex flex-wrap gap-1.5"></div>
       </div>
 
@@ -137,83 +250,189 @@
       <div id="studentUploadGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
     </section>
 
-    <!-- ==================== TAB 2: LINEUP BUILDER ==================== -->
+    <!-- ==================== TAB 2: LINEUP BUILDER (COLLABORATIVE) ==================== -->
     <section id="tab-lineup" class="no-print hidden space-y-4">
       <div class="master-banner p-4 flex flex-wrap justify-between items-center gap-2 shadow-sm">
         <div>
-          <h2 class="text-xl font-bold text-white">🏃 จัดตัวนักกีฬาลงแข่งขันทั้ง 50 รายการ (ส.ด.)</h2>
-          <p class="text-sm text-blue-100">กติกา: แต่ละกลุ่มชิงเหรียญ ทอง-เงิน-ทองแดง ของตัวเองทันที ไม่มีรอบคัดเลือก • ระบบนับจำนวนรายการที่ลงอัตโนมัติ</p>
+          <h2 class="text-xl font-bold text-white">🏃 จัดตัวนักกีฬาลงแข่งขันทั้ง 50 รายการ (ทีมครูช่วยกันจัดได้)</h2>
+          <p class="text-sm text-orange-100">ข้อมูลซิงก์เรียลไทม์ทุกเครื่อง • แสดงชื่อครูผู้จัดล่าสุดป้องกันทำซ้ำ • นับจำนวนรายการต่อคนอัตโนมัติ</p>
         </div>
-        <div id="lineupProgressBadge" class="bg-white/20 px-3 py-1.5 rounded-lg text-sm font-semibold">
+        <div id="lineupProgressBadge" class="bg-zinc-900/30 px-3 py-1.5 rounded-lg text-sm font-semibold">
           จัดตัวแล้ว 0/50 รายการ
         </div>
       </div>
 
-      <!-- Filter Age & Search -->
-      <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-3">
+      <!-- Filter Age, Status & Search -->
+      <div class="bg-white p-3 rounded-xl border border-zinc-200 shadow-sm flex flex-wrap items-center justify-between gap-3">
         <div class="flex flex-wrap items-center gap-1.5" id="eventAgeFilters">
-          <button onclick="setEventAgeFilter('all')" class="ev-age-btn px-3 py-1.5 rounded-lg text-sm font-semibold bg-blue-700 text-white" data-age="all">ทั้งหมด (50)</button>
-          <button onclick="setEventAgeFilter(6)" class="ev-age-btn px-3 py-1.5 rounded-lg text-sm font-semibold bg-slate-100 text-slate-700" data-age="6">รุ่น 6 ปี อนุบาล (10)</button>
-          <button onclick="setEventAgeFilter(8)" class="ev-age-btn px-3 py-1.5 rounded-lg text-sm font-semibold bg-slate-100 text-slate-700" data-age="8">รุ่น 8 ปี (10)</button>
-          <button onclick="setEventAgeFilter(10)" class="ev-age-btn px-3 py-1.5 rounded-lg text-sm font-semibold bg-slate-100 text-slate-700" data-age="10">รุ่น 10 ปี (14)</button>
-          <button onclick="setEventAgeFilter(12)" class="ev-age-btn px-3 py-1.5 rounded-lg text-sm font-semibold bg-slate-100 text-slate-700" data-age="12">รุ่น 12 ปี (16)</button>
+          <button onclick="setEventAgeFilter('all')" class="ev-age-btn px-3 py-1.5 rounded-lg text-sm font-semibold bg-orange-600 text-white" data-age="all">ทั้งหมด (50)</button>
+          <button onclick="setEventAgeFilter(6)" class="ev-age-btn px-3 py-1.5 rounded-lg text-sm font-semibold bg-zinc-100 text-zinc-700" data-age="6">รุ่น 6 ปี อนุบาล (10)</button>
+          <button onclick="setEventAgeFilter(8)" class="ev-age-btn px-3 py-1.5 rounded-lg text-sm font-semibold bg-zinc-100 text-zinc-700" data-age="8">รุ่น 8 ปี (10)</button>
+          <button onclick="setEventAgeFilter(10)" class="ev-age-btn px-3 py-1.5 rounded-lg text-sm font-semibold bg-zinc-100 text-zinc-700" data-age="10">รุ่น 10 ปี (14)</button>
+          <button onclick="setEventAgeFilter(12)" class="ev-age-btn px-3 py-1.5 rounded-lg text-sm font-semibold bg-zinc-100 text-zinc-700" data-age="12">รุ่น 12 ปี (16)</button>
         </div>
-        <input id="eventSearchInput" type="text" placeholder="🔍 ค้นหารายการ (เช่น 100 เมตร, 5x80, กระโดดไกล)..." oninput="renderEventsList()" class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm w-full sm:w-72 focus:outline-none focus:ring-2 focus:ring-blue-500">
+        <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          <select id="eventStatusFilter" onchange="renderEventsList()" class="border border-zinc-300 rounded-lg px-2.5 py-1.5 text-sm bg-white font-medium text-zinc-700">
+            <option value="all">ทุกสถานะ</option>
+            <option value="pending">ยังไม่จัดตัว</option>
+            <option value="done">จัดตัวครบแล้ว</option>
+          </select>
+          <input id="eventSearchInput" type="text" placeholder="🔍 ค้นหารายการ (เช่น 100 เมตร, 5x80)..." oninput="renderEventsList()" class="border border-zinc-300 rounded-lg px-3 py-1.5 text-sm flex-1 sm:w-64 focus:outline-none focus:ring-2 focus:ring-orange-500">
+        </div>
       </div>
-
-      <!-- Workload Summary Bar (Quick view of how many events each student has) -->
-      <details class="bg-white rounded-xl border border-slate-200 shadow-sm p-3">
-        <summary class="cursor-pointer font-bold text-blue-900 text-sm flex items-center justify-between">
-          <span>📊 คลิกเพื่อดูสรุปจำนวนรายการแข่งของนักเรียนรายบุคคล (ป้องกันเด็กวิ่งหนักเกินไป)</span>
-          <span class="text-xs text-slate-500 font-normal">คลิกเปิด/ปิด</span>
-        </summary>
-        <div id="studentWorkloadSummary" class="mt-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 text-xs"></div>
-      </details>
 
       <!-- Events List -->
       <div id="eventsListContainer" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
     </section>
 
-    <!-- ==================== TAB 3: PRINT A4 STUDIO ==================== -->
+    <!-- ==================== TAB 3: ATHLETE WORKLOAD SUMMARY ==================== -->
+    <section id="tab-summary" class="no-print hidden space-y-4">
+      <div class="master-banner p-4 flex flex-wrap justify-between items-center gap-3 shadow-sm">
+        <div>
+          <h2 class="text-xl font-bold text-white">📊 สรุปภาพรวมนักกีฬาทุกคน (เช็กจำนวนรายการแข่งรายบุคคล)</h2>
+          <p class="text-sm text-orange-100">ดูได้ทันทีว่านักเรียนแต่ละคนลงแข่งกี่รายการแล้ว รายการไหนบ้าง และพร้อมพิมพ์ตารางสรุปไว้ตรวจหน้างาน</p>
+        </div>
+        <button onclick="printSummarySheet()" class="bg-white text-orange-700 hover:bg-orange-50 font-bold px-4 py-2 rounded-lg shadow flex items-center gap-2 text-sm sm:text-base">
+          🖨️ พิมพ์ตารางสรุปนักกีฬา
+        </button>
+      </div>
+
+      <!-- Summary KPI Cards -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div class="bg-white border border-zinc-200 rounded-xl p-3.5 text-center shadow-sm">
+          <div class="text-xs font-bold text-zinc-500">นักเรียนทั้งหมด</div>
+          <div id="sum-total-students" class="text-2xl sm:text-3xl font-extrabold text-zinc-800 mt-0.5">0</div>
+        </div>
+        <div class="bg-orange-50 border border-orange-200 rounded-xl p-3.5 text-center shadow-sm">
+          <div class="text-xs font-bold text-orange-800">ลงแข่งแล้ว (1+ รายการ)</div>
+          <div id="sum-active-athletes" class="text-2xl sm:text-3xl font-extrabold text-orange-600 mt-0.5">0</div>
+        </div>
+        <div class="bg-zinc-100 border border-zinc-300 rounded-xl p-3.5 text-center shadow-sm">
+          <div class="text-xs font-bold text-zinc-600">ยังไม่ได้ลงรายการ</div>
+          <div id="sum-idle-athletes" class="text-2xl sm:text-3xl font-extrabold text-zinc-600 mt-0.5">0</div>
+        </div>
+        <div class="bg-red-50 border border-red-200 rounded-xl p-3.5 text-center shadow-sm">
+          <div class="text-xs font-bold text-red-800">ลงแข่งหนัก (3+ รายการ)</div>
+          <div id="sum-heavy-athletes" class="text-2xl sm:text-3xl font-extrabold text-red-600 mt-0.5">0</div>
+        </div>
+      </div>
+
+      <!-- Summary Filters -->
+      <div class="bg-white p-3 rounded-xl border border-zinc-200 shadow-sm flex flex-wrap items-center gap-2.5 justify-between">
+        <div class="flex flex-wrap items-center gap-2">
+          <select id="summaryClassFilter" onchange="renderSummaryTab()" class="border border-zinc-300 rounded-lg px-2.5 py-1.5 text-sm font-medium bg-white">
+            <option value="all">ทุกชั้นเรียน</option>
+            <option value="อ.2">ชั้น อ.2</option>
+            <option value="อ.3">ชั้น อ.3</option>
+            <option value="ป.1">ชั้น ป.1</option>
+            <option value="ป.2">ชั้น ป.2</option>
+            <option value="ป.3">ชั้น ป.3</option>
+            <option value="ป.4">ชั้น ป.4</option>
+            <option value="ป.5">ชั้น ป.5</option>
+            <option value="ป.6">ชั้น ป.6</option>
+          </select>
+
+          <select id="summaryAgeFilter" onchange="renderSummaryTab()" class="border border-zinc-300 rounded-lg px-2.5 py-1.5 text-sm font-medium bg-white">
+            <option value="all">ทุกเกณฑ์อายุ</option>
+            <option value="6">เกณฑ์รุ่น 6 ปี</option>
+            <option value="8">เกณฑ์รุ่น 8 ปี</option>
+            <option value="10">เกณฑ์รุ่น 10 ปี</option>
+            <option value="12">เกณฑ์รุ่น 12 ปี</option>
+          </select>
+
+          <select id="summaryStatusFilter" onchange="renderSummaryTab()" class="border border-zinc-300 rounded-lg px-2.5 py-1.5 text-sm font-medium bg-white">
+            <option value="all">แสดงทุกคน</option>
+            <option value="active">เฉพาะคนลงแข่งแล้ว</option>
+            <option value="idle">เฉพาะคนยังไม่ลงแข่ง</option>
+            <option value="heavy">ลงแข่ง 3 รายการขึ้นไป</option>
+          </select>
+
+          <select id="summarySortOrder" onchange="renderSummaryTab()" class="border border-zinc-300 rounded-lg px-2.5 py-1.5 text-sm font-medium bg-white">
+            <option value="count_desc">เรียงตามจำนวนรายการมากสุด</option>
+            <option value="class_asc">เรียงตามชั้นเรียน (อ.2 → ป.6)</option>
+          </select>
+        </div>
+
+        <input id="summarySearchInput" type="text" placeholder="🔍 ค้นหาชื่อนักเรียน..." oninput="renderSummaryTab()" class="border border-zinc-300 rounded-lg px-3 py-1.5 text-sm w-full sm:w-60 focus:outline-none focus:ring-2 focus:ring-orange-500">
+      </div>
+
+      <!-- Summary Table -->
+      <div class="bg-white rounded-xl border border-zinc-200 shadow-sm overflow-x-auto">
+        <table class="w-full text-sm text-left border-collapse">
+          <thead class="bg-zinc-800 text-white">
+            <tr>
+              <th class="px-3 py-2.5 w-12 text-center">ที่</th>
+              <th class="px-3 py-2.5">นักกีฬา / ชั้นเรียน</th>
+              <th class="px-3 py-2.5 w-24 text-center">เกณฑ์อายุ</th>
+              <th class="px-3 py-2.5 w-28 text-center">หลักฐาน</th>
+              <th class="px-3 py-2.5 w-28 text-center">จำนวนลงแข่ง</th>
+              <th class="px-3 py-2.5">รายการที่ลงแข่งขันทั้งหมด</th>
+            </tr>
+          </thead>
+          <tbody id="summaryTableBody" class="divide-y divide-zinc-200"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Hidden Print Container for Summary Tab -->
+    <div id="summaryPrintArea" class="hidden"></div>
+
+    <!-- ==================== TAB 4: PRINT A4 STUDIO ==================== -->
     <section id="tab-print" class="hidden space-y-4">
       <div class="no-print master-banner p-4 flex flex-wrap justify-between items-center gap-3 shadow-sm">
         <div>
           <h2 class="text-xl font-bold text-white">🖨️ จัดหน้าเอกสาร A4 พร้อมหลักฐานสำหรับปริ้นส่ง</h2>
-          <p class="text-sm text-blue-100">ดึงชื่อ รูปถ่ายหน้าตรง และรูปหลักฐานของนักกีฬาที่จัดตัวแล้ว มาจัดลง A4 พร้อมช่องรับรอง ผอ. อัตโนมัติ</p>
+          <p class="text-sm text-orange-100">แยกหน้า 1 (รายชื่อ+รูปหน้าตรง) กับหน้า 2+ (หลักฐานล้วน 8 ใบ/หน้า) • แยกสี 4 รุ่นอายุ • รวมเดี่ยวแยกชาย-หญิง ลู่/ลาน • ผอ. เซ็นรับรองคนเดียว</p>
         </div>
-        <button onclick="window.print()" class="bg-white text-blue-900 hover:bg-blue-50 font-bold px-4 py-2 rounded-lg shadow flex items-center gap-2 text-sm sm:text-base">
+        <button onclick="printA4Documents()" class="bg-white text-orange-700 hover:bg-orange-50 font-bold px-4 py-2 rounded-lg shadow flex items-center gap-2 text-sm sm:text-base">
           🖨️ สั่งพิมพ์ / บันทึกเป็น PDF
         </button>
       </div>
 
-      <!-- Print Filter Controls -->
-      <div class="no-print bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex flex-wrap items-center gap-3">
-        <label class="text-sm font-bold text-slate-700">เลือกขอบเขตการพิมพ์:</label>
-        <select id="printScopeSelect" onchange="renderPrintPages()" class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500">
-          <option value="assigned">เฉพาะรายการที่จัดตัวนักกีฬาแล้ว</option>
-          <option value="age_6">รุ่น 6 ปี (อนุบาล) ทั้งหมด</option>
-          <option value="age_8">รุ่น 8 ปี ทั้งหมด</option>
-          <option value="age_10">รุ่น 10 ปี ทั้งหมด</option>
-          <option value="age_12">รุ่น 12 ปี ทั้งหมด</option>
-          <option value="all">ทุกรายการ (50 รายการ)</option>
-        </select>
+      <!-- Print Color Legend -->
+      <div class="no-print bg-white p-3 rounded-xl border border-zinc-200 shadow-sm space-y-3">
+        <div class="flex flex-wrap items-center gap-3">
+          <label class="text-sm font-bold text-zinc-700">เลือกขอบเขตการพิมพ์:</label>
+          <select id="printScopeSelect" onchange="renderPrintPages()" class="border border-zinc-300 rounded-lg px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-orange-500">
+            <option value="assigned">เฉพาะชุดที่มีการจัดตัวนักกีฬาแล้ว</option>
+            <option value="age_6">รุ่น 6 ปี (อนุบาล) ทั้งหมด</option>
+            <option value="age_8">รุ่น 8 ปี ทั้งหมด</option>
+            <option value="age_10">รุ่น 10 ปี ทั้งหมด</option>
+            <option value="age_12">รุ่น 12 ปี ทั้งหมด</option>
+            <option value="all">ทุกรายการทั้งหมด (เดี่ยว 8 ชุด + ผลัด 14 ชุด)</option>
+          </select>
 
-        <label class="flex items-center gap-1.5 text-sm text-slate-700 cursor-pointer">
-          <input type="checkbox" id="printIncludeEvidence" checked onchange="renderPrintPages()" class="rounded text-blue-600">
-          <span>พิมพ์หน้ารวมรูปถ่าย + หลักฐาน (บัตร ปชช./ทะเบียนบ้าน/สูติบัตร)</span>
-        </label>
+          <select id="printCategorySelect" onchange="renderPrintPages()" class="border border-zinc-300 rounded-lg px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-orange-500">
+            <option value="both">ทั้งแข่งเดี่ยว + วิ่งผลัด</option>
+            <option value="individual">เฉพาะชุดรวมแข่งเดี่ยว (แยกลู่/ลาน ชาย-หญิง)</option>
+            <option value="relay">เฉพาะรายการวิ่งผลัด</option>
+          </select>
+
+          <label class="flex items-center gap-1.5 text-sm text-zinc-700 cursor-pointer">
+            <input type="checkbox" id="printIncludeEvidence" checked onchange="renderPrintPages()" class="rounded text-orange-600">
+            <span>พิมพ์หน้าหลักฐานแนบท้าย (หน้า 2+)</span>
+          </label>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2 text-xs pt-2 border-t border-zinc-100">
+          <span class="font-bold text-zinc-600">ธีมสีแยกตามรุ่นอายุ:</span>
+          <span class="px-2 py-0.5 rounded font-bold text-white" style="background:#be185d">รุ่น 6 ปี: ชมพู</span>
+          <span class="px-2 py-0.5 rounded font-bold text-white" style="background:#1d4ed8">รุ่น 8 ปี: น้ำเงิน</span>
+          <span class="px-2 py-0.5 rounded font-bold text-white" style="background:#ea580c">รุ่น 10 ปี: ส้ม</span>
+          <span class="px-2 py-0.5 rounded font-bold text-white" style="background:#15803d">รุ่น 12 ปี: เขียว</span>
+        </div>
       </div>
 
       <!-- A4 Pages Output -->
       <div id="printPagesContainer" class="space-y-6"></div>
     </section>
 
-    <!-- ==================== TAB 4: LIVE RESULTS & MEDAL TALLY ==================== -->
+    <!-- ==================== TAB 5: LIVE RESULTS & MEDAL TALLY ==================== -->
     <section id="tab-results" class="no-print hidden space-y-4">
       <div class="master-banner p-4 flex flex-wrap justify-between items-center gap-2 shadow-sm">
         <div>
           <h2 class="text-xl font-bold text-white">🏆 บันทึกผลการแข่งขัน & สรุปเหรียญรางวัล ส.ด. แบบสด</h2>
-          <p class="text-sm text-blue-100">แข่งจบรายการไหน กดบันทึกอันดับ/เหรียญรางวัลได้ทันที เพื่อนครูและผู้บริหารเห็นผลพร้อมกันแบบเรียลไทม์</p>
+          <p class="text-sm text-orange-100">แข่งจบรายการไหน กดบันทึกอันดับ/เหรียญรางวัลได้ทันที เพื่อนครูและผู้บริหารเห็นผลพร้อมกันแบบเรียลไทม์</p>
         </div>
       </div>
 
@@ -224,31 +443,31 @@
           <div class="text-sm font-bold text-amber-900">เหรียญทอง</div>
           <div id="medal-gold-count" class="text-3xl font-extrabold text-amber-700">0</div>
         </div>
-        <div class="bg-gradient-to-br from-slate-50 to-slate-200 border border-slate-300 rounded-xl p-4 text-center shadow-sm">
+        <div class="bg-gradient-to-br from-zinc-50 to-zinc-200 border border-zinc-300 rounded-xl p-4 text-center shadow-sm">
           <div class="text-3xl mb-1">🥈</div>
-          <div class="text-sm font-bold text-slate-800">เหรียญเงิน</div>
-          <div id="medal-silver-count" class="text-3xl font-extrabold text-slate-700">0</div>
+          <div class="text-sm font-bold text-zinc-800">เหรียญเงิน</div>
+          <div id="medal-silver-count" class="text-3xl font-extrabold text-zinc-700">0</div>
         </div>
         <div class="bg-gradient-to-br from-orange-50 to-orange-100 border border-orange-300 rounded-xl p-4 text-center shadow-sm">
           <div class="text-3xl mb-1">🥉</div>
           <div class="text-sm font-bold text-orange-900">เหรียญทองแดง</div>
           <div id="medal-bronze-count" class="text-3xl font-extrabold text-orange-700">0</div>
         </div>
-        <div class="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-300 rounded-xl p-4 text-center shadow-sm">
+        <div class="bg-gradient-to-br from-zinc-800 to-zinc-700 border border-zinc-900 rounded-xl p-4 text-center shadow-sm text-white">
           <div class="text-3xl mb-1">🏅</div>
-          <div class="text-sm font-bold text-blue-900">รวมเหรียญทั้งหมด</div>
-          <div id="medal-total-count" class="text-3xl font-extrabold text-blue-700">0</div>
+          <div class="text-sm font-bold text-orange-300">รวมเหรียญทั้งหมด</div>
+          <div id="medal-total-count" class="text-3xl font-extrabold text-white">0</div>
         </div>
       </div>
 
       <!-- Filter Results -->
-      <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex flex-wrap gap-2 items-center justify-between">
+      <div class="bg-white p-3 rounded-xl border border-zinc-200 shadow-sm flex flex-wrap gap-2 items-center justify-between">
         <div class="flex flex-wrap gap-1.5">
-          <button onclick="setResultFilter('all')" class="res-filter-btn px-3 py-1 rounded-lg text-sm font-semibold bg-blue-700 text-white" data-res="all">ทั้งหมด</button>
-          <button onclick="setResultFilter('completed')" class="res-filter-btn px-3 py-1 rounded-lg text-sm font-semibold bg-slate-100 text-slate-700" data-res="completed">แข่งจบแล้ว</button>
-          <button onclick="setResultFilter('pending')" class="res-filter-btn px-3 py-1 rounded-lg text-sm font-semibold bg-slate-100 text-slate-700" data-res="pending">ยังไม่บันทึกผล</button>
+          <button onclick="setResultFilter('all')" class="res-filter-btn px-3 py-1 rounded-lg text-sm font-semibold bg-orange-600 text-white" data-res="all">ทั้งหมด</button>
+          <button onclick="setResultFilter('completed')" class="res-filter-btn px-3 py-1 rounded-lg text-sm font-semibold bg-zinc-100 text-zinc-700" data-res="completed">แข่งจบแล้ว</button>
+          <button onclick="setResultFilter('pending')" class="res-filter-btn px-3 py-1 rounded-lg text-sm font-semibold bg-zinc-100 text-zinc-700" data-res="pending">ยังไม่บันทึกผล</button>
         </div>
-        <input id="resultSearchInput" type="text" placeholder="🔍 ค้นหารายการ..." oninput="renderResultsList()" class="border border-slate-300 rounded-lg px-3 py-1 text-sm w-full sm:w-64">
+        <input id="resultSearchInput" type="text" placeholder="🔍 ค้นหารายการ..." oninput="renderResultsList()" class="border border-zinc-300 rounded-lg px-3 py-1 text-sm w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-orange-500">
       </div>
 
       <!-- Results List -->
@@ -260,27 +479,27 @@
   <!-- ==================== MODAL: IMAGE CROPPER ==================== -->
   <div id="cropModal" class="no-print fixed inset-0 bg-black/70 z-50 hidden items-center justify-center p-4">
     <div class="bg-white rounded-2xl max-w-xl w-full overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
-      <div class="bg-blue-900 text-white px-4 py-3 flex justify-between items-center">
+      <div class="bg-zinc-800 text-white px-4 py-3 flex justify-between items-center border-b-2 border-orange-500">
         <div>
           <h3 id="cropModalTitle" class="font-bold text-base">✂️ จัดกรอบรูปภาพอัตโนมัติ</h3>
-          <p id="cropModalSubtitle" class="text-xs text-blue-200">ล็อกสัดส่วนตามขนาดมาตรฐาน</p>
+          <p id="cropModalSubtitle" class="text-xs text-orange-200">ล็อกสัดส่วนตามขนาดมาตรฐาน</p>
         </div>
         <button onclick="closeCropModal()" class="text-white/80 hover:text-white text-xl font-bold px-2">&times;</button>
       </div>
 
-      <div class="p-4 flex-1 overflow-auto bg-slate-900 flex items-center justify-center min-h-[300px]">
+      <div class="p-4 flex-1 overflow-auto bg-zinc-900 flex items-center justify-center min-h-[300px]">
         <img id="cropImagePreview" class="max-w-full max-h-[55vh]" alt="Preview">
       </div>
 
-      <div class="p-3 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2">
+      <div class="p-3 bg-zinc-50 border-t border-zinc-200 flex flex-wrap items-center justify-between gap-2">
         <div class="flex gap-1.5">
-          <button onclick="rotateCropper(-90)" class="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold hover:bg-slate-100">↺ หมุนซ้าย</button>
-          <button onclick="rotateCropper(90)" class="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold hover:bg-slate-100">↻ หมุนขวา</button>
-          <button onclick="setCropAspect('free')" class="px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold hover:bg-slate-100">อิสระ</button>
+          <button onclick="rotateCropper(-90)" class="px-3 py-1.5 bg-white border border-zinc-300 rounded-lg text-xs font-semibold hover:bg-zinc-100">↺ หมุนซ้าย</button>
+          <button onclick="rotateCropper(90)" class="px-3 py-1.5 bg-white border border-zinc-300 rounded-lg text-xs font-semibold hover:bg-zinc-100">↻ หมุนขวา</button>
+          <button onclick="setCropAspect('free')" class="px-3 py-1.5 bg-white border border-zinc-300 rounded-lg text-xs font-semibold hover:bg-zinc-100">อิสระ</button>
         </div>
         <div class="flex gap-2">
-          <button onclick="closeCropModal()" class="px-4 py-1.5 bg-slate-200 text-slate-700 rounded-lg text-sm font-semibold">ยกเลิก</button>
-          <button id="saveCropBtn" onclick="saveCroppedImage()" class="px-4 py-1.5 bg-blue-700 text-white rounded-lg text-sm font-bold hover:bg-blue-800">💾 บันทึกรูปลงระบบ</button>
+          <button onclick="closeCropModal()" class="px-4 py-1.5 bg-zinc-200 text-zinc-700 rounded-lg text-sm font-semibold">ยกเลิก</button>
+          <button id="saveCropBtn" onclick="saveCroppedImage()" class="px-4 py-1.5 bg-orange-600 text-white rounded-lg text-sm font-bold hover:bg-orange-700">💾 บันทึกรูปลงระบบ</button>
         </div>
       </div>
     </div>
@@ -292,7 +511,7 @@
       <div class="master-banner rounded-none px-5 py-3 flex justify-between items-center">
         <div>
           <h3 id="lineupModalTitle" class="font-bold text-lg text-white">จัดตัวนักกีฬา</h3>
-          <p id="lineupModalMeta" class="text-xs text-blue-100"></p>
+          <p id="lineupModalMeta" class="text-xs text-orange-100"></p>
         </div>
         <button onclick="closeLineupModal()" class="text-white/80 hover:text-white text-2xl font-bold px-2">&times;</button>
       </div>
@@ -301,18 +520,18 @@
         <!-- Left: Selected Slots -->
         <div class="lg:col-span-5 space-y-2">
           <div class="flex items-center justify-between">
-            <h4 class="font-bold text-blue-900 text-sm">📌 รายชื่อผู้ลงแข่งขัน (คลิกเพื่อลบ/เปลี่ยน)</h4>
+            <h4 class="font-bold text-zinc-800 text-sm">📌 รายชื่อผู้ลงแข่งขัน (คลิกเพื่อลบ/เปลี่ยน)</h4>
             <button onclick="clearEventSlots()" class="text-xs text-red-600 hover:underline">ล้างรายชื่อทั้งหมด</button>
           </div>
           <div id="lineupSlotsList" class="space-y-2"></div>
         </div>
 
         <!-- Right: Candidate Students with Flexible Class Checkboxes -->
-        <div class="lg:col-span-7 space-y-2 border-t lg:border-t-0 lg:border-l border-slate-200 pt-3 lg:pt-0 lg:pl-4">
-          <div class="bg-blue-50 border border-blue-200 rounded-xl p-2.5 space-y-2">
+        <div class="lg:col-span-7 space-y-2 border-t lg:border-t-0 lg:border-l border-zinc-200 pt-3 lg:pt-0 lg:pl-4">
+          <div class="bg-orange-50 border border-orange-200 rounded-xl p-2.5 space-y-2">
             <div class="flex flex-wrap items-center justify-between gap-2">
-              <span class="text-xs font-bold text-blue-900">🏫 แสดงรายชื่อชั้นเรียน (ติ๊กดึงรุ่นน้องมาช่วยได้):</span>
-              <select id="lineupGenderFilter" onchange="renderLineupCandidates()" class="text-xs border border-blue-300 rounded px-2 py-1 bg-white font-semibold">
+              <span class="text-xs font-bold text-orange-900">🏫 แสดงรายชื่อชั้นเรียน (ติ๊กดึงรุ่นน้องมาช่วยได้):</span>
+              <select id="lineupGenderFilter" onchange="renderLineupCandidates()" class="text-xs border border-orange-300 rounded px-2 py-1 bg-white font-semibold">
                 <option value="match">ตรงเพศรายการ</option>
                 <option value="all">ทุกเพศ</option>
               </select>
@@ -320,21 +539,24 @@
             <div id="lineupClassCheckboxes" class="flex flex-wrap gap-2 text-xs"></div>
           </div>
 
-          <input id="candidateSearchInput" type="text" placeholder="🔍 ค้นหาชื่อเล่น/ชื่อจริงนักเรียน..." oninput="renderLineupCandidates()" class="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm">
+          <input id="candidateSearchInput" type="text" placeholder="🔍 ค้นหาชื่อเล่น/ชื่อจริงนักเรียน..." oninput="renderLineupCandidates()" class="w-full border border-zinc-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
 
           <div id="lineupCandidatesList" class="space-y-1.5 max-h-[45vh] overflow-y-auto pr-1"></div>
         </div>
       </div>
 
-      <div class="p-3 bg-slate-50 border-t border-slate-200 flex justify-end gap-2">
-        <button onclick="closeLineupModal()" class="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg text-sm font-semibold">ปิด</button>
-        <button onclick="saveLineup()" class="px-5 py-2 bg-blue-700 text-white rounded-lg text-sm font-bold hover:bg-blue-800 shadow">💾 บันทึกรายชื่อทีมนี้</button>
+      <div class="p-3 bg-zinc-50 border-t border-zinc-200 flex flex-wrap justify-between items-center gap-2">
+        <span id="lineupModalEditorHint" class="text-xs text-zinc-500">บันทึกในชื่อ: ...</span>
+        <div class="flex gap-2">
+          <button onclick="closeLineupModal()" class="px-4 py-2 bg-zinc-200 text-zinc-700 rounded-lg text-sm font-semibold">ปิด</button>
+          <button onclick="saveLineup()" class="px-5 py-2 bg-orange-600 text-white rounded-lg text-sm font-bold hover:bg-orange-700 shadow">💾 บันทึกรายชื่อทีมนี้</button>
+        </div>
       </div>
     </div>
   </div>
 
   <!-- Toast Notification -->
-  <div id="toastMsg" class="no-print fixed bottom-5 right-5 z-50 hidden bg-slate-900 text-white px-4 py-2.5 rounded-xl shadow-lg text-sm font-medium"></div>
+  <div id="toastMsg" class="no-print fixed bottom-5 right-5 z-50 hidden bg-zinc-900 text-white px-4 py-2.5 rounded-xl shadow-lg text-sm font-medium border-l-4 border-orange-500"></div>
 
   <script type="module" src="./app.js"></script>
 </body>

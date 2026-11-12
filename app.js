@@ -2,7 +2,6 @@ import {
   db,
   collection,
   doc,
-  setDoc,
   updateDoc,
   onSnapshot,
   writeBatch,
@@ -28,16 +27,110 @@ let tempAthletes = []; // array of { slotLabel, studentId }
 let allowedClassesInModal = new Set();
 
 const ALL_CLASSES = ["อ.2", "อ.3", "ป.1", "ป.2", "ป.3", "ป.4", "ป.5", "ป.6"];
+const AGE_GROUPS = [6, 8, 10, 12];
+const GENDERS = ["ชาย", "หญิง"];
+
+// Distinct Print Themes by Age Group (6: Pink, 8: Blue, 10: Orange, 12: Green)
+const AGE_PRINT_THEMES = {
+  6: {
+    label: "รุ่น 6 ปี (อนุบาล)",
+    primary: "#be185d",
+    gradient: "linear-gradient(135deg, #9d174d, #db2777)",
+    light: "#fdf2f8",
+    border: "#f9a8d4",
+    text: "#9d174d",
+    subtext: "#fce7f3"
+  },
+  8: {
+    label: "รุ่น 8 ปี",
+    primary: "#1d4ed8",
+    gradient: "linear-gradient(135deg, #1e40af, #2563eb)",
+    light: "#eff6ff",
+    border: "#93c5fd",
+    text: "#1e40af",
+    subtext: "#dbeafe"
+  },
+  10: {
+    label: "รุ่น 10 ปี",
+    primary: "#c2410c",
+    gradient: "linear-gradient(135deg, #c2410c, #ea580c)",
+    light: "#fff7ed",
+    border: "#fdba74",
+    text: "#9a3412",
+    subtext: "#ffedd5"
+  },
+  12: {
+    label: "รุ่น 12 ปี",
+    primary: "#15803d",
+    gradient: "linear-gradient(135deg, #166534, #16a34a)",
+    light: "#f0fdf4",
+    border: "#86efac",
+    text: "#166534",
+    subtext: "#dcfce7"
+  }
+};
+
+// ==================== HELPERS ====================
+function escapeHtml(str) {
+  return String(str ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function formatThaiTimeArabic(date = new Date()) {
+  try {
+    return new Intl.DateTimeFormat("th-TH-u-nu-latn", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false
+    }).format(date);
+  } catch {
+    return date.toISOString().slice(0, 16).replace("T", " ");
+  }
+}
+
+function getCurrentTeacherName() {
+  const saved = localStorage.getItem("soden_teacher_name");
+  return (saved && saved.trim()) || "ครูนภรัฐ อุดเต็น";
+}
+
+window.saveTeacherName = function (val) {
+  const clean = (val || "").trim() || "ครูนภรัฐ อุดเต็น";
+  localStorage.setItem("soden_teacher_name", clean);
+  const input = document.getElementById("teacherNameInput");
+  if (input) input.value = clean;
+  const hint = document.getElementById("lineupModalEditorHint");
+  if (hint) hint.textContent = `บันทึกในชื่อ: ${clean}`;
+  showToast(`ตั้งชื่อครูผู้ใช้งานเป็น "${clean}" แล้ว`);
+};
+
+function initTeacherNameInput() {
+  const input = document.getElementById("teacherNameInput");
+  if (input) {
+    input.value = getCurrentTeacherName();
+  }
+}
 
 // ==================== INIT & FIREBASE SYNC ====================
 async function initApp() {
+  initTeacherNameInput();
+
+  window.addEventListener("afterprint", () => {
+    document.body.dataset.printTarget = "a4";
+  });
+
   try {
     updateSyncStatus("⏳ กำลังตรวจสอบฐานข้อมูล...", "amber");
 
-    // Check if Firestore already has data; if empty, seed automatically
     const stdSnap = await getDocs(collection(db, "students"));
     if (stdSnap.empty) {
-      updateSyncStatus("📥 กำลังนำเข้ารายชื่อนักเรียน 76 คนและ 50 รายการ...", "blue");
+      updateSyncStatus("📥 กำลังนำเข้ารายชื่อนักเรียน 76 คนและ 50 รายการ...", "orange");
       await seedInitialDatabase();
     } else {
       const evSnap = await getDocs(collection(db, "events"));
@@ -46,7 +139,6 @@ async function initApp() {
       }
     }
 
-    // Listen to students collection in real time
     onSnapshot(collection(db, "students"), (snapshot) => {
       studentsList = snapshot.docs
         .map((d) => ({ id: d.id, ...d.data() }))
@@ -55,7 +147,6 @@ async function initApp() {
       updateSyncStatus("🟢 เชื่อมต่อฐานข้อมูลออนไลน์แล้ว", "green");
     });
 
-    // Listen to events collection in real time
     onSnapshot(collection(db, "events"), (snapshot) => {
       eventsList = snapshot.docs
         .map((d) => ({ id: d.id, ...d.data() }))
@@ -74,12 +165,10 @@ async function initApp() {
 async function seedInitialDatabase() {
   const batch = writeBatch(db);
   INITIAL_STUDENTS.forEach((std) => {
-    const ref = doc(db, "students", std.id);
-    batch.set(ref, std);
+    batch.set(doc(db, "students", std.id), std);
   });
   INITIAL_EVENTS.forEach((ev) => {
-    const ref = doc(db, "events", ev.id);
-    batch.set(ref, ev);
+    batch.set(doc(db, "events", ev.id), ev);
   });
   await batch.commit();
 }
@@ -87,8 +176,7 @@ async function seedInitialDatabase() {
 async function seedEventsOnly() {
   const batch = writeBatch(db);
   INITIAL_EVENTS.forEach((ev) => {
-    const ref = doc(db, "events", ev.id);
-    batch.set(ref, ev);
+    batch.set(doc(db, "events", ev.id), ev);
   });
   await batch.commit();
 }
@@ -99,7 +187,7 @@ function updateSyncStatus(text, color) {
   el.textContent = text;
   const styles = {
     amber: "bg-amber-100 text-amber-800",
-    blue: "bg-blue-100 text-blue-800",
+    orange: "bg-orange-100 text-orange-800",
     green: "bg-emerald-100 text-emerald-800",
     red: "bg-red-100 text-red-800"
   };
@@ -108,6 +196,7 @@ function updateSyncStatus(text, color) {
 
 function showToast(msg) {
   const el = document.getElementById("toastMsg");
+  if (!el) return;
   el.textContent = msg;
   el.classList.remove("hidden");
   setTimeout(() => el.classList.add("hidden"), 2800);
@@ -121,9 +210,12 @@ function getStudentWorkloadMap() {
     (ev.athletes || []).forEach((a) => {
       if (a.studentId && map[a.studentId]) {
         map[a.studentId].push({
+          eventId: ev.id,
+          eventNo: ev.no,
           eventName: ev.name,
           slotLabel: a.slotLabel,
-          ageGroup: ev.ageGroup
+          ageGroup: ev.ageGroup,
+          category: ev.category
         });
       }
     });
@@ -134,6 +226,7 @@ function getStudentWorkloadMap() {
 function refreshUI() {
   if (activeTab === "upload") renderUploadTab();
   if (activeTab === "lineup") renderLineupTab();
+  if (activeTab === "summary") renderSummaryTab();
   if (activeTab === "print") renderPrintPages();
   if (activeTab === "results") renderResultsTab();
 }
@@ -141,15 +234,18 @@ function refreshUI() {
 // ==================== TAB SWITCHING ====================
 window.switchTab = function (tabName) {
   activeTab = tabName;
-  ["upload", "lineup", "print", "results"].forEach((t) => {
-    document.getElementById(`tab-${t}`).classList.toggle("hidden", t !== tabName);
+  ["upload", "lineup", "summary", "print", "results"].forEach((t) => {
+    const sec = document.getElementById(`tab-${t}`);
     const btn = document.getElementById(`tab-btn-${t}`);
-    if (t === tabName) {
-      btn.classList.add("border-blue-700", "text-blue-800");
-      btn.classList.remove("border-transparent", "text-slate-600");
-    } else {
-      btn.classList.remove("border-blue-700", "text-blue-800");
-      btn.classList.add("border-transparent", "text-slate-600");
+    if (sec) sec.classList.toggle("hidden", t !== tabName);
+    if (btn) {
+      if (t === tabName) {
+        btn.classList.add("border-orange-600", "text-orange-700", "bg-white");
+        btn.classList.remove("border-transparent", "text-zinc-600");
+      } else {
+        btn.classList.remove("border-orange-600", "text-orange-700", "bg-white");
+        btn.classList.add("border-transparent", "text-zinc-600");
+      }
     }
   });
   refreshUI();
@@ -157,8 +253,9 @@ window.switchTab = function (tabName) {
 
 // ==================== TAB 1: UPLOAD PHOTOS & EVIDENCE ====================
 function renderUploadTab() {
-  // Class Filter Buttons
   const btnContainer = document.getElementById("classFilterButtons");
+  if (!btnContainer) return;
+
   btnContainer.innerHTML = ALL_CLASSES.map((cls) => {
     const classStds = studentsList.filter((s) => s.className === cls);
     const completeCnt = classStds.filter((s) => s.photoData && s.docData).length;
@@ -167,23 +264,21 @@ function renderUploadTab() {
       <button onclick="setClassFilter('${cls}')"
         class="px-3 py-1.5 rounded-lg text-sm font-bold transition flex items-center gap-1.5 ${
           isActive
-            ? "bg-blue-700 text-white shadow-sm"
-            : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+            ? "bg-orange-600 text-white shadow-sm"
+            : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
         }">
         <span>${cls}</span>
         <span class="text-xs px-1.5 py-0.5 rounded-full ${
-          isActive ? "bg-blue-900 text-blue-100" : "bg-white text-slate-600"
+          isActive ? "bg-orange-800 text-orange-100" : "bg-white text-zinc-600"
         }">${completeCnt}/${classStds.length}</span>
       </button>
     `;
   }).join("");
 
-  // Overall progress
   const totalComplete = studentsList.filter((s) => s.photoData && s.docData).length;
   document.getElementById("uploadProgressBadge").textContent =
     `หลักฐานครบแล้ว ${totalComplete} / ${studentsList.length} คน`;
 
-  // Render student cards
   const filtered = studentsList.filter((s) => s.className === activeClassFilter);
   const grid = document.getElementById("studentUploadGrid");
   grid.innerHTML = filtered
@@ -193,11 +288,11 @@ function renderUploadTab() {
       const isComplete = hasPhoto && hasDoc;
 
       return `
-      <div class="bg-white rounded-xl border ${isComplete ? "border-emerald-300" : "border-slate-200"} shadow-sm overflow-hidden flex flex-col">
-        <div class="px-4 py-2.5 ${isComplete ? "bg-emerald-50" : "bg-slate-50"} border-b border-slate-200 flex justify-between items-center">
+      <div class="bg-white rounded-xl border ${isComplete ? "border-emerald-300" : "border-zinc-200"} shadow-sm overflow-hidden flex flex-col">
+        <div class="px-4 py-2.5 ${isComplete ? "bg-emerald-50" : "bg-zinc-50"} border-b border-zinc-200 flex justify-between items-center">
           <div>
-            <div class="font-bold text-slate-900 text-base">${s.fullName}</div>
-            <div class="text-xs text-slate-500">ชั้น ${s.className} เลขที่ ${s.classNo} • เกิด ${s.dob} (เกณฑ์ ${s.minAgeGroup} ปี)</div>
+            <div class="font-bold text-zinc-900 text-base">${escapeHtml(s.fullName)}</div>
+            <div class="text-xs text-zinc-500">ชั้น ${escapeHtml(s.className)} เลขที่ ${escapeHtml(s.classNo)} • เกิด ${escapeHtml(s.dob)} (เกณฑ์ ${s.minAgeGroup} ปี)</div>
           </div>
           <span class="text-xs font-bold px-2 py-1 rounded-full ${
             isComplete
@@ -211,37 +306,37 @@ function renderUploadTab() {
         <div class="p-3.5 grid grid-cols-2 gap-3 flex-1">
           <!-- Photo Box -->
           <div class="flex flex-col items-center gap-1.5">
-            <div class="text-xs font-bold text-slate-700">รูปหน้าตรง (3:4)</div>
-            <div class="w-full aspect-[3/4] max-h-36 bg-slate-100 border border-dashed border-slate-300 rounded-lg overflow-hidden flex items-center justify-center">
+            <div class="text-xs font-bold text-zinc-700">รูปหน้าตรง (3:4)</div>
+            <div class="w-full aspect-[3/4] max-h-36 bg-zinc-100 border border-dashed border-zinc-300 rounded-lg overflow-hidden flex items-center justify-center">
               ${
                 hasPhoto
                   ? `<img src="${s.photoData}" class="w-full h-full object-cover" alt="รูปนักเรียน">`
-                  : `<span class="text-xs text-slate-400 text-center px-2">ยังไม่มีรูปถ่าย</span>`
+                  : `<span class="text-xs text-zinc-400 text-center px-2">ยังไม่มีรูปถ่าย</span>`
               }
             </div>
-            <label class="w-full text-center cursor-pointer bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 rounded-lg py-1.5 text-xs font-bold">
+            <label class="w-full text-center cursor-pointer bg-orange-50 hover:bg-orange-100 text-orange-800 border border-orange-200 rounded-lg py-1.5 text-xs font-bold">
               ${hasPhoto ? "🔄 เปลี่ยนรูป" : "📷 ถ่าย / เลือกรูป"}
               <input type="file" accept="image/*" class="hidden" onchange="handleFileSelect(event, '${s.id}', 'photoData')">
             </label>
           </div>
 
-          <!-- Evidence Box (ID / House Reg / Birth Cert) -->
+          <!-- Evidence Box -->
           <div class="flex flex-col items-center gap-1.5">
             <select onchange="updateStudentDocType('${s.id}', this.value)"
-              class="w-full text-xs font-bold text-slate-700 border border-slate-300 rounded px-1.5 py-0.5 bg-white">
+              class="w-full text-xs font-bold text-zinc-700 border border-zinc-300 rounded px-1.5 py-0.5 bg-white">
               <option value="บัตรประจำตัวประชาชน" ${s.docType === "บัตรประจำตัวประชาชน" ? "selected" : ""}>บัตรประจำตัวประชาชน</option>
               <option value="สำเนาทะเบียนบ้าน" ${s.docType === "สำเนาทะเบียนบ้าน" ? "selected" : ""}>สำเนาทะเบียนบ้าน</option>
               <option value="สูติบัตร" ${s.docType === "สูติบัตร" ? "selected" : ""}>สูติบัตร (ใบเกิด)</option>
             </select>
 
-            <div class="w-full aspect-[1.58/1] max-h-36 bg-slate-100 border border-dashed border-slate-300 rounded-lg overflow-hidden flex items-center justify-center">
+            <div class="w-full aspect-[1.58/1] max-h-36 bg-zinc-100 border border-dashed border-zinc-300 rounded-lg overflow-hidden flex items-center justify-center">
               ${
                 hasDoc
                   ? `<img src="${s.docData}" class="w-full h-full object-contain bg-white" alt="หลักฐาน">`
-                  : `<span class="text-xs text-slate-400 text-center px-2">ยังไม่มีหลักฐาน</span>`
+                  : `<span class="text-xs text-zinc-400 text-center px-2">ยังไม่มีหลักฐาน</span>`
               }
             </div>
-            <label class="w-full text-center cursor-pointer bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 rounded-lg py-1.5 text-xs font-bold mt-auto">
+            <label class="w-full text-center cursor-pointer bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border border-zinc-300 rounded-lg py-1.5 text-xs font-bold mt-auto">
               ${hasDoc ? "🔄 เปลี่ยนหลักฐาน" : "🪪 ถ่าย / เลือกเอกสาร"}
               <input type="file" accept="image/*" class="hidden" onchange="handleFileSelect(event, '${s.id}', 'docData')">
             </label>
@@ -281,7 +376,6 @@ window.handleFileSelect = function (event, studentId, field) {
     const imgEl = document.getElementById("cropImagePreview");
     imgEl.src = e.target.result;
 
-    // Set title and aspect ratio based on document type
     let aspect = NaN;
     if (field === "photoData") {
       aspect = 3 / 4;
@@ -290,10 +384,10 @@ window.handleFileSelect = function (event, studentId, field) {
     } else {
       const docType = std?.docType || "บัตรประจำตัวประชาชน";
       if (docType === "บัตรประจำตัวประชาชน") {
-        aspect = 1.586; // Standard ID card aspect ratio (85.6mm x 53.98mm)
+        aspect = 1.586;
         document.getElementById("cropModalSubtitle").textContent = "ล็อกสัดส่วนบัตรประจำตัวประชาชนอัตโนมัติ (1.58:1)";
       } else {
-        aspect = 1.414; // Landscape A4 / House reg / Birth cert crop
+        aspect = 1.414;
         document.getElementById("cropModalSubtitle").textContent = `จัดกรอบสำหรับ "${docType}" (สามารถปรับเป็นอิสระได้)`;
       }
       document.getElementById("cropModalTitle").textContent = `✂️ ครอปหลักฐาน (${docType}): ${std?.shortName || ""}`;
@@ -351,7 +445,6 @@ window.saveCroppedImage = async function () {
       imageSmoothingQuality: "high"
     });
 
-    // Compress to JPEG 0.78 quality (~50-140 KB)
     const compressedBase64 = canvas.toDataURL("image/jpeg", 0.78);
     const updateObj = {};
     updateObj[currentCropTarget.field] = compressedBase64;
@@ -368,35 +461,11 @@ window.saveCroppedImage = async function () {
   }
 };
 
-// ==================== TAB 2: LINEUP BUILDER ====================
+// ==================== TAB 2: LINEUP BUILDER (COLLABORATIVE) ====================
 function renderLineupTab() {
   const assignedCount = eventsList.filter((e) => (e.athletes || []).some((a) => a.studentId)).length;
-  document.getElementById("lineupProgressBadge").textContent = `จัดตัวแล้ว ${assignedCount} / ${eventsList.length} รายการ`;
-
-  // Workload summary
-  const workloadMap = getStudentWorkloadMap();
-  const workloadHtml = studentsList
-    .map((s) => {
-      const list = workloadMap[s.id] || [];
-      const count = list.length;
-      if (count === 0) return "";
-      const badgeColor = count >= 4 ? "bg-red-100 text-red-800 border-red-300" : "bg-blue-50 text-blue-900 border-blue-200";
-      return `
-        <div class="border rounded-lg p-2 ${badgeColor}">
-          <div class="font-bold flex justify-between">
-            <span>${s.shortName} (${s.className})</span>
-            <span>🏃 ${count}</span>
-          </div>
-          <div class="text-[11px] opacity-80 truncate">${list.map((x) => x.eventName).join(", ")}</div>
-        </div>
-      `;
-    })
-    .filter(Boolean)
-    .join("");
-
-  document.getElementById("studentWorkloadSummary").innerHTML =
-    workloadHtml || `<div class="col-span-full text-slate-400 text-center py-2">ยังไม่มีการจัดตัวนักกีฬาลงรายการ</div>`;
-
+  const badge = document.getElementById("lineupProgressBadge");
+  if (badge) badge.textContent = `จัดตัวแล้ว ${assignedCount} / ${eventsList.length} รายการ`;
   renderEventsList();
 }
 
@@ -405,7 +474,7 @@ window.setEventAgeFilter = function (age) {
   document.querySelectorAll(".ev-age-btn").forEach((b) => {
     const match = String(b.dataset.age) === String(age);
     b.className = `ev-age-btn px-3 py-1.5 rounded-lg text-sm font-semibold ${
-      match ? "bg-blue-700 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+      match ? "bg-orange-600 text-white" : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
     }`;
   });
   renderEventsList();
@@ -413,48 +482,61 @@ window.setEventAgeFilter = function (age) {
 
 window.renderEventsList = function () {
   const search = (document.getElementById("eventSearchInput")?.value || "").trim().toLowerCase();
+  const statusFilter = document.getElementById("eventStatusFilter")?.value || "all";
+
   const filtered = eventsList.filter((ev) => {
     if (activeEventAgeFilter !== "all" && Number(ev.ageGroup) !== Number(activeEventAgeFilter)) return false;
     if (search && !ev.name.toLowerCase().includes(search)) return false;
+    const assignedCnt = (ev.athletes || []).filter((a) => a.studentId).length;
+    if (statusFilter === "pending" && assignedCnt >= ev.mainSlots) return false;
+    if (statusFilter === "done" && assignedCnt < ev.mainSlots) return false;
     return true;
   });
 
   const container = document.getElementById("eventsListContainer");
+  if (!container) return;
+
   container.innerHTML = filtered
     .map((ev) => {
       const assigned = (ev.athletes || []).filter((a) => a.studentId);
+      const isComplete = assigned.length >= ev.mainSlots;
       const isHighChance = ev.totalTeams <= 5;
       const slotsDesc = ev.category === "วิ่งผลัด" ? `ตัวจริง ${ev.mainSlots} ไม้` : "ตัวจริง 1 คน";
 
       const assignedBadges = assigned
         .map((a) => {
           const st = studentsList.find((s) => s.id === a.studentId);
-          return `<span class="inline-block bg-blue-50 text-blue-900 border border-blue-200 text-xs px-2 py-0.5 rounded">${a.slotLabel}: ${st ? st.shortName : "-"}</span>`;
+          return `<span class="inline-block bg-orange-50 text-orange-900 border border-orange-200 text-xs px-2 py-0.5 rounded">${escapeHtml(a.slotLabel)}: ${escapeHtml(st ? st.shortName : "-")}</span>`;
         })
         .join(" ");
 
+      const updatedTag = ev.updatedBy
+        ? `<div class="text-[11px] text-zinc-500 mt-1">✍️ จัดล่าสุดโดย: <strong class="text-zinc-700">${escapeHtml(ev.updatedBy)}</strong> ${ev.updatedAt ? `(${escapeHtml(ev.updatedAt)})` : ""}</div>`
+        : "";
+
       return `
-      <div class="bg-white rounded-xl border ${assigned.length >= ev.mainSlots ? "border-emerald-300" : "border-slate-200"} p-3.5 shadow-sm flex flex-col justify-between gap-2.5">
+      <div class="bg-white rounded-xl border ${isComplete ? "border-emerald-300" : "border-zinc-200"} p-3.5 shadow-sm flex flex-col justify-between gap-2.5">
         <div>
           <div class="flex justify-between items-start gap-2">
-            <span class="text-xs font-bold px-2 py-0.5 rounded bg-blue-900 text-white">รุ่น ${ev.ageGroup} ปี • ${ev.category}</span>
-            <span class="text-xs font-bold px-2 py-0.5 rounded ${isHighChance ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-700"}">
-              ${ev.group} | ช่อง ${ev.lane} (${ev.totalTeams} ทีม${isHighChance ? " ⭐" : ""})
+            <span class="text-xs font-bold px-2 py-0.5 rounded bg-zinc-700 text-white">รุ่น ${ev.ageGroup} ปี • ${escapeHtml(ev.category)}</span>
+            <span class="text-xs font-bold px-2 py-0.5 rounded ${isHighChance ? "bg-amber-100 text-amber-800" : "bg-zinc-100 text-zinc-700"}">
+              ${escapeHtml(ev.group)} | ช่อง ${escapeHtml(ev.lane)} (${ev.totalTeams} ทีม${isHighChance ? " ⭐" : ""})
             </span>
           </div>
-          <h3 class="font-bold text-slate-900 text-base mt-1.5">${ev.no}. ${ev.name}</h3>
-          <p class="text-xs text-slate-500 mt-0.5">คู่แข่ง: ${ev.competitors || "-"}</p>
+          <h3 class="font-bold text-zinc-900 text-base mt-1.5">${ev.no}. ${escapeHtml(ev.name)}</h3>
+          <p class="text-xs text-zinc-500 mt-0.5">คู่แข่ง: ${escapeHtml(ev.competitors || "-")}</p>
           <div class="mt-2 flex flex-wrap gap-1">
-            ${assignedBadges || `<span class="text-xs text-slate-400 italic">ยังไม่ได้จัดตัวนักกีฬา (${slotsDesc})</span>`}
+            ${assignedBadges || `<span class="text-xs text-zinc-400 italic">ยังไม่ได้จัดตัวนักกีฬา (${slotsDesc})</span>`}
           </div>
+          ${updatedTag}
         </div>
 
         <button onclick="openLineupModal('${ev.id}')" class="w-full py-1.5 rounded-lg text-sm font-bold ${
-          assigned.length >= ev.mainSlots
+          isComplete
             ? "bg-emerald-50 text-emerald-800 border border-emerald-300 hover:bg-emerald-100"
-            : "bg-blue-700 text-white hover:bg-blue-800"
+            : "bg-orange-600 text-white hover:bg-orange-700"
         }">
-          ${assigned.length >= ev.mainSlots ? "✏️ แก้ไขรายชื่อนักกีฬา" : "➕ จัดตัวนักกีฬาลงรายการนี้"}
+          ${isComplete ? "✏️ แก้ไข / ช่วยปรับรายชื่อ" : "➕ จัดตัวนักกีฬาลงรายการนี้"}
         </button>
       </div>
     `;
@@ -470,9 +552,9 @@ window.openLineupModal = function (eventId) {
   currentEditingEvent = ev;
   document.getElementById("lineupModalTitle").textContent = `${ev.no}. ${ev.name}`;
   document.getElementById("lineupModalMeta").textContent =
-    `${ev.group} • ช่องวิ่งที่ ${ev.lane} • มีคู่แข่งรวม ${ev.totalTeams} ทีม`;
+    `${ev.group} • ช่องวิ่งที่ ${ev.lane} • คู่แข่ง ${ev.totalTeams} ทีม${ev.updatedBy ? ` • จัดล่าสุดโดย ${ev.updatedBy}` : ""}`;
+  document.getElementById("lineupModalEditorHint").textContent = `บันทึกในชื่อ: ${getCurrentTeacherName()}`;
 
-  // Build expected slots
   const slots = [];
   if (ev.mainSlots === 1) {
     slots.push({ slotLabel: "ตัวจริง", studentId: "" });
@@ -486,14 +568,12 @@ window.openLineupModal = function (eventId) {
     }
   }
 
-  // Merge existing assigned athletes
   (ev.athletes || []).forEach((saved) => {
     const target = slots.find((s) => s.slotLabel === saved.slotLabel);
     if (target) target.studentId = saved.studentId;
   });
   tempAthletes = slots;
 
-  // Set default checked classes based on age group (with ability to toggle ป.1 for age 6, etc.)
   allowedClassesInModal = new Set();
   if (ev.ageGroup === 6) {
     ["อ.2", "อ.3", "ป.1"].forEach((c) => allowedClassesInModal.add(c));
@@ -529,8 +609,8 @@ function renderLineupClassCheckboxes() {
   container.innerHTML = ALL_CLASSES.map((cls) => {
     const checked = allowedClassesInModal.has(cls) ? "checked" : "";
     return `
-      <label class="inline-flex items-center gap-1 bg-white border border-blue-200 px-2 py-1 rounded cursor-pointer font-semibold text-slate-700">
-        <input type="checkbox" ${checked} onchange="toggleClassInModal('${cls}', this.checked)" class="rounded text-blue-600">
+      <label class="inline-flex items-center gap-1 bg-white border border-orange-200 px-2 py-1 rounded cursor-pointer font-semibold text-zinc-700">
+        <input type="checkbox" ${checked} onchange="toggleClassInModal('${cls}', this.checked)" class="rounded text-orange-600">
         <span>${cls}</span>
       </label>
     `;
@@ -551,22 +631,22 @@ function renderLineupSlots() {
       const isReserve = slot.slotLabel.includes("สำรอง");
       return `
       <div class="flex items-center justify-between border rounded-xl p-2.5 ${
-        st ? "bg-blue-50 border-blue-300" : isReserve ? "bg-amber-50/40 border-dashed border-amber-300" : "bg-slate-50 border-dashed border-slate-300"
+        st ? "bg-orange-50 border-orange-300" : isReserve ? "bg-amber-50/40 border-dashed border-amber-300" : "bg-zinc-50 border-dashed border-zinc-300"
       }">
         <div class="flex items-center gap-2.5">
-          <span class="text-xs font-bold px-2 py-1 rounded ${isReserve ? "bg-amber-200 text-amber-900" : "bg-blue-800 text-white"}">
-            ${slot.slotLabel}
+          <span class="text-xs font-bold px-2 py-1 rounded ${isReserve ? "bg-amber-200 text-amber-900" : "bg-zinc-700 text-white"}">
+            ${escapeHtml(slot.slotLabel)}
           </span>
           ${
             st
               ? `<div class="flex items-center gap-2">
                   ${st.photoData ? `<img src="${st.photoData}" class="w-8 h-10 object-cover rounded border">` : ""}
                   <div>
-                    <div class="font-bold text-sm text-slate-900">${st.shortName}</div>
-                    <div class="text-[11px] text-slate-500">ชั้น ${st.className} • เกิด ${st.dob}</div>
+                    <div class="font-bold text-sm text-zinc-900">${escapeHtml(st.shortName)}</div>
+                    <div class="text-[11px] text-zinc-500">ชั้น ${escapeHtml(st.className)} • เกิด ${escapeHtml(st.dob)}</div>
                   </div>
                  </div>`
-              : `<span class="text-xs text-slate-400">คลิกเลือกชื่อนักเรียนทางขวา...</span>`
+              : `<span class="text-xs text-zinc-400">คลิกเลือกชื่อนักเรียนทางขวา...</span>`
           }
         </div>
         ${
@@ -608,7 +688,6 @@ window.renderLineupCandidates = function () {
       return true;
     })
     .sort((a, b) => {
-      // Prioritize students whose birthYear fits the exact event age group!
       const aFits = a.minAgeGroup <= ev.ageGroup ? 0 : 1;
       const bFits = b.minAgeGroup <= ev.ageGroup ? 0 : 1;
       if (aFits !== bFits) return aFits - bFits;
@@ -634,32 +713,32 @@ window.renderLineupCandidates = function () {
         ${isPicked ? "disabled" : ""}
         class="w-full text-left border rounded-xl p-2 flex items-center justify-between gap-2 transition ${
           isPicked
-            ? "bg-slate-100 border-slate-200 opacity-50 cursor-not-allowed"
+            ? "bg-zinc-100 border-zinc-200 opacity-50 cursor-not-allowed"
             : isEligible
-            ? "bg-white border-slate-200 hover:border-blue-500 hover:bg-blue-50/50 cursor-pointer"
+            ? "bg-white border-zinc-200 hover:border-orange-500 hover:bg-orange-50/60 cursor-pointer"
             : "bg-red-50/40 border-red-200 hover:bg-red-50 cursor-pointer"
         }">
         <div class="flex items-center gap-2.5">
           ${
             s.photoData
-              ? `<img src="${s.photoData}" class="w-9 h-11 object-cover rounded border border-slate-300">`
-              : `<div class="w-9 h-11 bg-slate-200 rounded flex items-center justify-center text-[10px] text-slate-500">ไม่มีรูป</div>`
+              ? `<img src="${s.photoData}" class="w-9 h-11 object-cover rounded border border-zinc-300">`
+              : `<div class="w-9 h-11 bg-zinc-200 rounded flex items-center justify-center text-[10px] text-zinc-500">ไม่มีรูป</div>`
           }
           <div>
-            <div class="font-bold text-sm text-slate-900 flex items-center gap-1">
-              <span>${s.shortName} (${s.className})</span>
+            <div class="font-bold text-sm text-zinc-900 flex flex-wrap items-center gap-1">
+              <span>${escapeHtml(s.shortName)} (${escapeHtml(s.className)})</span>
               ${isBonusOlderClass ? `<span class="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold">⭐ พี่แต่อายุถึง!</span>` : ""}
               ${!isEligible ? `<span class="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-bold">⚠️ เกินเกณฑ์ (${s.minAgeGroup} ปี)</span>` : ""}
             </div>
-            <div class="text-[11px] text-slate-500">เกิด ${s.dob} • ${hasEvidence ? "🟢 หลักฐานครบ" : "🟡 ขาดรูป/บัตร"}</div>
+            <div class="text-[11px] text-zinc-500">เกิด ${escapeHtml(s.dob)} • ${hasEvidence ? "🟢 หลักฐานครบ" : "🟡 ขาดรูป/บัตร"}</div>
           </div>
         </div>
 
         <div class="flex items-center gap-2">
-          <span class="text-xs font-bold px-2 py-0.5 rounded-full ${eventCount >= 4 ? "bg-red-100 text-red-700" : "bg-slate-100 text-slate-700"}">
+          <span class="text-xs font-bold px-2 py-0.5 rounded-full ${eventCount >= 3 ? "bg-red-100 text-red-700" : "bg-zinc-100 text-zinc-700"}">
             🏃 ${eventCount} รายการ
           </span>
-          <span class="text-xs font-bold text-blue-700">${isPicked ? "✓ เลือกแล้ว" : "+ เพิ่ม"}</span>
+          <span class="text-xs font-bold text-orange-700">${isPicked ? "✓ เลือกแล้ว" : "+ เพิ่ม"}</span>
         </div>
       </button>
     `;
@@ -682,10 +761,13 @@ window.saveLineup = async function () {
   if (!currentEditingEvent) return;
   try {
     const cleanAthletes = tempAthletes.filter((s) => s.studentId);
+    const editorName = getCurrentTeacherName();
     await updateDoc(doc(db, "events", currentEditingEvent.id), {
-      athletes: cleanAthletes
+      athletes: cleanAthletes,
+      updatedBy: editorName,
+      updatedAt: formatThaiTimeArabic()
     });
-    showToast("✅ บันทึกรายชื่อนักกีฬาเรียบร้อยแล้ว!");
+    showToast(`✅ บันทึกรายชื่อเรียบร้อย (โดย ${editorName})`);
     closeLineupModal();
   } catch (err) {
     console.error("Save lineup error:", err);
@@ -693,154 +775,726 @@ window.saveLineup = async function () {
   }
 };
 
-// ==================== TAB 3: PRINT A4 PAGES ====================
-window.renderPrintPages = function () {
-  const scope = document.getElementById("printScopeSelect").value;
-  const includeEvidence = document.getElementById("printIncludeEvidence").checked;
+// ==================== TAB 3: ATHLETE WORKLOAD SUMMARY ====================
+function getFilteredSummaryRows() {
+  const workloadMap = getStudentWorkloadMap();
+  const classFilter = document.getElementById("summaryClassFilter")?.value || "all";
+  const ageFilter = document.getElementById("summaryAgeFilter")?.value || "all";
+  const statusFilter = document.getElementById("summaryStatusFilter")?.value || "all";
+  const sortOrder = document.getElementById("summarySortOrder")?.value || "count_desc";
+  const search = (document.getElementById("summarySearchInput")?.value || "").trim().toLowerCase();
 
-  let targetEvents = eventsList.filter((ev) => {
-    if (scope === "assigned") return (ev.athletes || []).some((a) => a.studentId);
-    if (scope.startsWith("age_")) {
-      const ageNum = Number(scope.replace("age_", ""));
-      return Number(ev.ageGroup) === ageNum;
-    }
+  let rows = studentsList.map((s) => ({
+    student: s,
+    events: workloadMap[s.id] || []
+  }));
+
+  rows = rows.filter(({ student, events }) => {
+    if (classFilter !== "all" && student.className !== classFilter) return false;
+    if (ageFilter !== "all" && Number(student.minAgeGroup) !== Number(ageFilter)) return false;
+    if (statusFilter === "active" && events.length === 0) return false;
+    if (statusFilter === "idle" && events.length > 0) return false;
+    if (statusFilter === "heavy" && events.length < 3) return false;
+    if (search && !student.fullName.toLowerCase().includes(search)) return false;
     return true;
   });
 
+  if (sortOrder === "count_desc") {
+    rows.sort((a, b) => b.events.length - a.events.length || (a.student.no || 0) - (b.student.no || 0));
+  } else {
+    rows.sort((a, b) => (a.student.no || 0) - (b.student.no || 0));
+  }
+
+  return rows;
+}
+
+window.renderSummaryTab = function () {
+  const workloadMap = getStudentWorkloadMap();
+  const totalStudents = studentsList.length;
+  const activeCount = studentsList.filter((s) => (workloadMap[s.id] || []).length >= 1).length;
+  const heavyCount = studentsList.filter((s) => (workloadMap[s.id] || []).length >= 3).length;
+  const idleCount = totalStudents - activeCount;
+
+  const totalEl = document.getElementById("sum-total-students");
+  if (!totalEl) return;
+  totalEl.textContent = totalStudents;
+  document.getElementById("sum-active-athletes").textContent = activeCount;
+  document.getElementById("sum-idle-athletes").textContent = idleCount;
+  document.getElementById("sum-heavy-athletes").textContent = heavyCount;
+
+  const rows = getFilteredSummaryRows();
+  const tbody = document.getElementById("summaryTableBody");
+
+  if (rows.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" class="px-4 py-8 text-center text-zinc-400">ไม่พบข้อมูลนักเรียนตามตัวกรองที่เลือก</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = rows
+    .map(({ student: s, events }, idx) => {
+      const hasEvidence = Boolean(s.photoData && s.docData);
+      const cnt = events.length;
+      const cntBadge =
+        cnt === 0
+          ? `<span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-zinc-100 text-zinc-500">0 รายการ</span>`
+          : cnt >= 3
+          ? `<span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700">🔥 ${cnt} รายการ</span>`
+          : `<span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-orange-100 text-orange-800">🏃 ${cnt} รายการ</span>`;
+
+      const eventTags = events
+        .map(
+          (ev) => `
+          <span class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded border border-zinc-300 bg-zinc-50 text-zinc-800">
+            <span class="font-bold text-orange-700">${ev.eventNo}.</span>
+            <span>${escapeHtml(ev.eventName)}</span>
+            <span class="text-[10px] text-zinc-500">(${escapeHtml(ev.slotLabel)})</span>
+          </span>
+        `
+        )
+        .join(" ");
+
+      return `
+      <tr class="hover:bg-orange-50/40">
+        <td class="px-3 py-2 text-center font-semibold text-zinc-600">${idx + 1}</td>
+        <td class="px-3 py-2">
+          <div class="flex items-center gap-2.5">
+            ${
+              s.photoData
+                ? `<img src="${s.photoData}" class="w-9 h-11 object-cover rounded border border-zinc-300 flex-shrink-0">`
+                : `<div class="w-9 h-11 bg-zinc-200 rounded flex items-center justify-center text-[10px] text-zinc-500 flex-shrink-0">ไม่มีรูป</div>`
+            }
+            <div>
+              <div class="font-bold text-zinc-900">${escapeHtml(s.fullName)}</div>
+              <div class="text-xs text-zinc-500">ชั้น ${escapeHtml(s.className)} เลขที่ ${escapeHtml(s.classNo)} • เกิด ${escapeHtml(s.dob)}</div>
+            </div>
+          </div>
+        </td>
+        <td class="px-3 py-2 text-center">
+          <span class="text-xs font-bold px-2 py-0.5 rounded bg-zinc-100 text-zinc-700">รุ่น ${s.minAgeGroup} ปี</span>
+        </td>
+        <td class="px-3 py-2 text-center">
+          <span class="text-xs font-bold px-2 py-0.5 rounded-full ${hasEvidence ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}">
+            ${hasEvidence ? "🟢 ครบ" : "🟡 รอรูป/บัตร"}
+          </span>
+        </td>
+        <td class="px-3 py-2 text-center">${cntBadge}</td>
+        <td class="px-3 py-2">
+          <div class="flex flex-wrap gap-1">${eventTags || `<span class="text-xs text-zinc-400 italic">ยังไม่ได้ลงแข่งขัน</span>`}</div>
+        </td>
+      </tr>
+    `;
+    })
+    .join("");
+};
+
+window.printSummarySheet = function () {
+  const rows = getFilteredSummaryRows();
+  const printArea = document.getElementById("summaryPrintArea");
+  if (!printArea) return;
+
+  const chunkSize = 18;
+  const chunks = [];
+  for (let i = 0; i < rows.length; i += chunkSize) {
+    chunks.push(rows.slice(i, i + chunkSize));
+  }
+  if (chunks.length === 0) chunks.push([]);
+
+  printArea.innerHTML = chunks
+    .map((chunk, pageIdx) => {
+      const isLast = pageIdx === chunks.length - 1;
+      const trHtml = chunk
+        .map(({ student: s, events }, idx) => {
+          const rowNum = pageIdx * chunkSize + idx + 1;
+          const evList = events.map((ev) => `${ev.eventName} [${ev.slotLabel}]`).join(", ");
+          return `
+          <tr>
+            <td class="border border-zinc-400 px-1.5 py-1 text-center">${rowNum}</td>
+            <td class="border border-zinc-400 px-2 py-1 font-semibold">${escapeHtml(s.fullName)}</td>
+            <td class="border border-zinc-400 px-1.5 py-1 text-center">${escapeHtml(s.className)}</td>
+            <td class="border border-zinc-400 px-1.5 py-1 text-center">รุ่น ${s.minAgeGroup} ปี</td>
+            <td class="border border-zinc-400 px-1.5 py-1 text-center font-bold">${events.length}</td>
+            <td class="border border-zinc-400 px-2 py-1 text-xs">${escapeHtml(evList || "-")}</td>
+          </tr>
+        `;
+        })
+        .join("");
+
+      return `
+      <div class="a4-page">
+        <div>
+          <div class="flex justify-between items-center border-b-2 border-orange-600 pb-1.5 mb-2">
+            <span class="bg-zinc-800 text-white text-xs font-bold px-2.5 py-0.5 rounded">โรงเรียนบ้านส้อเด่นพัฒนา (ส.ด.)</span>
+            <span class="text-sm font-bold text-zinc-900">สรุปรายชื่อและจำนวนรายการแข่งขันนักกรีฑารายบุคคล 2569</span>
+            <span class="text-xs font-semibold text-zinc-600">ผู้จัดทำ: <strong class="text-orange-700">ครูนภรัฐ อุดเต็น</strong></span>
+          </div>
+
+          <div class="master-banner px-4 py-1.5 flex justify-between items-center mb-2.5">
+            <div class="text-sm font-bold text-white">ตารางสรุปนักกีฬา (หน้า ${pageIdx + 1}/${chunks.length})</div>
+            <div class="text-xs text-orange-100">รวมทั้งหมด ${rows.length} คน</div>
+          </div>
+
+          <table class="w-full border-collapse text-xs">
+            <thead>
+              <tr class="bg-zinc-800 text-white">
+                <th class="border border-zinc-800 px-1.5 py-1.5 w-8">ที่</th>
+                <th class="border border-zinc-800 px-2 py-1.5 w-44">ชื่อ - นามสกุล</th>
+                <th class="border border-zinc-800 px-1.5 py-1.5 w-12">ชั้น</th>
+                <th class="border border-zinc-800 px-1.5 py-1.5 w-16">เกณฑ์</th>
+                <th class="border border-zinc-800 px-1.5 py-1.5 w-14">จำนวน</th>
+                <th class="border border-zinc-800 px-2 py-1.5">รายการที่ลงแข่งขัน</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${trHtml || `<tr><td colspan="6" class="border border-zinc-400 p-4 text-center text-zinc-400">ไม่มีข้อมูล</td></tr>`}
+            </tbody>
+          </table>
+        </div>
+
+        ${
+          isLast
+            ? `<div class="mt-3 flex justify-end">
+                <div class="border border-dashed border-zinc-400 rounded-lg px-6 py-2.5 text-center text-xs bg-zinc-50/60 w-72">
+                  <div class="mb-5">ขอรับรองว่าเป็นนักเรียนโรงเรียนบ้านส้อเด่นพัฒนาจริง</div>
+                  <div>ลงชื่อ ............................................................</div>
+                  <div class="font-bold mt-0.5">( นายนพคุณ เกรียงศักดานุกูล )</div>
+                  <div>ผู้อำนวยการโรงเรียนบ้านส้อเด่นพัฒนา</div>
+                </div>
+              </div>`
+            : `<div></div>`
+        }
+      </div>
+    `;
+    })
+    .join("");
+
+  document.body.dataset.printTarget = "summary";
+  window.print();
+};
+
+// ==================== TAB 4: PRINT A4 STUDIO (SEPARATED ROSTER + PACKED EVIDENCE) ====================
+window.printA4Documents = function () {
+  document.body.dataset.printTarget = "a4";
+  window.print();
+};
+
+function renderDirectorSignatureCard(theme) {
+  return `
+    <div class="ev-card-id" style="border: 1.5px dashed ${theme.primary}; background: ${theme.light};">
+      <div class="text-[11px] font-bold text-center px-1.5 py-0.5 rounded text-white" style="background: ${theme.primary};">
+        คำรับรองจากผู้บริหารสถานศึกษา
+      </div>
+      <div class="flex-1 flex flex-col justify-center items-center text-center px-2 text-[11px] leading-snug text-zinc-800">
+        <div class="font-semibold mb-4">ขอรับรองว่าเป็นนักเรียนโรงเรียนบ้านส้อเด่นพัฒนาจริง</div>
+        <div>ลงชื่อ .......................................................</div>
+        <div class="font-bold mt-0.5 text-xs">( นายนพคุณ เกรียงศักดานุกูล )</div>
+        <div class="text-[10px] text-zinc-600">ผู้อำนวยการโรงเรียนบ้านส้อเด่นพัฒนา</div>
+      </div>
+    </div>
+  `;
+}
+
+function renderDirectorSingleFooterBox(theme) {
+  return `
+    <div class="mt-2.5 flex justify-end">
+      <div class="rounded-lg px-5 py-2 text-center text-xs w-72" style="border: 1px dashed ${theme.primary}; background: ${theme.light};">
+        <div class="mb-4 text-zinc-800">ขอรับรองว่าเป็นนักเรียนโรงเรียนบ้านส้อเด่นพัฒนาจริง</div>
+        <div class="text-zinc-800">ลงชื่อ ............................................................</div>
+        <div class="font-bold mt-0.5 text-zinc-900">( นายนพคุณ เกรียงศักดานุกูล )</div>
+        <div class="text-[11px] text-zinc-600">ผู้อำนวยการโรงเรียนบ้านส้อเด่นพัฒนา</div>
+      </div>
+    </div>
+  `;
+}
+
+function renderFormalHeader(theme, titleText, bannerLeft, bannerRight) {
+  return `
+    <div>
+      <div class="flex justify-between items-center pb-1 mb-1.5" style="border-bottom: 2px solid ${theme.primary};">
+        <span class="text-white font-bold text-[11px] px-2.5 py-0.5 rounded" style="background: ${theme.primary};">โรงเรียนบ้านส้อเด่นพัฒนา (ส.ด.)</span>
+        <span class="text-xs sm:text-sm font-bold" style="color: ${theme.text};">${escapeHtml(titleText)}</span>
+        <span class="text-[11px] font-semibold text-zinc-600">ผู้จัดทำ: <strong style="color: ${theme.text};">ครูนภรัฐ อุดเต็น</strong></span>
+      </div>
+      <div class="px-3.5 py-1.5 rounded-lg flex flex-wrap justify-between items-center mb-2 text-white" style="background: ${theme.gradient};">
+        <div class="text-sm font-bold">${escapeHtml(bannerLeft)}</div>
+        <div class="text-[11px]" style="color: ${theme.subtext};">${escapeHtml(bannerRight)}</div>
+      </div>
+    </div>
+  `;
+}
+
+function getEvidenceCategoryKey(docType) {
+  if (docType === "สูติบัตร") return "birth";
+  if (docType === "สำเนาทะเบียนบ้าน") return "house";
+  return "id";
+}
+
+function renderEvidenceItemCard(item, theme) {
+  if (item.kind === "director") {
+    return renderDirectorSignatureCard(theme);
+  }
+
+  const st = item.student;
+  const docType = st.docType || "บัตรประจำตัวประชาชน";
+  const catKey = item.catKey;
+  const cardClass = catKey === "birth" ? "ev-card-birth" : catKey === "house" ? "ev-card-house" : "ev-card-id";
+  const imgClass = catKey === "birth" ? "ev-img-birth" : catKey === "house" ? "ev-img-house" : "ev-img-id";
+
+  return `
+    <div class="${cardClass}" style="border: 1px solid ${theme.border};">
+      <div class="flex justify-between items-center gap-1 px-1 pb-0.5" style="border-bottom: 1px solid ${theme.border}; background: ${theme.light};">
+        <div class="font-bold text-[11px] truncate" style="color: ${theme.text};">
+          ${item.orderNo}. ${escapeHtml(st.shortName)} (${escapeHtml(st.className)})
+        </div>
+        <div class="text-[10px] text-zinc-600 truncate max-w-[50%] text-right" title="${escapeHtml(item.eventSummary)}">
+          ${escapeHtml(docType)} • ${escapeHtml(item.eventSummary)}
+        </div>
+      </div>
+      <div class="flex-1 flex items-center justify-center overflow-hidden bg-white">
+        ${
+          st.docData
+            ? `<img src="${st.docData}" class="${imgClass}" alt="${escapeHtml(docType)}">`
+            : `<div class="text-xs text-zinc-400 text-center">ยังไม่อัปโหลด${escapeHtml(docType)}</div>`
+        }
+      </div>
+    </div>
+  `;
+}
+
+// Smart A4 Evidence Packer:
+// - Up to 8 ID cards per page (2 cols x 4 rows, 60mm each)
+// - Mixes small ID cards first, then medium House Reg (~2x ID), then large Birth Cert
+// - Places Director signature card (1 ID-card slot) at the very end
+// - No bottom footer on Evidence pages to maximize space
+function buildEvidencePagesHtml(packageTitle, ageGroup, evidenceItems) {
+  if (!evidenceItems || evidenceItems.length === 0) return "";
+  const theme = AGE_PRINT_THEMES[ageGroup] || AGE_PRINT_THEMES[10];
+
+  const orderRank = { id: 1, house: 2, birth: 3 };
+  const typedItems = evidenceItems
+    .map((entry, idx) => {
+      const catKey = getEvidenceCategoryKey(entry.student.docType);
+      return {
+        kind: "student",
+        orderNo: idx + 1,
+        student: entry.student,
+        eventSummary: entry.eventSummary,
+        catKey,
+        spanCols: catKey === "id" ? 1 : 2,
+        rowHeight: catKey === "birth" ? 122 : catKey === "house" ? 112 : 60
+      };
+    })
+    .sort((a, b) => orderRank[a.catKey] - orderRank[b.catKey] || a.orderNo - b.orderNo);
+
+  // Append Director certification box sized as 1 ID card at the end
+  typedItems.push({
+    kind: "director",
+    spanCols: 1,
+    rowHeight: 60
+  });
+
+  // Pack items into grid rows
+  const rows = [];
+  let i = 0;
+  while (i < typedItems.length) {
+    const cur = typedItems[i];
+    if (cur.spanCols === 2) {
+      rows.push({ height: cur.rowHeight, items: [cur] });
+      i += 1;
+    } else {
+      const next = typedItems[i + 1];
+      if (next && next.spanCols === 1) {
+        rows.push({ height: 60, items: [cur, next] });
+        i += 2;
+      } else {
+        rows.push({ height: 60, items: [cur] });
+        i += 1;
+      }
+    }
+  }
+
+  // Pack rows onto A4 pages (usable height ~ 258mm after 11mm top strip + 3mm margin)
+  const MAX_PAGE_HEIGHT = 258;
+  const ROW_GAP = 2.5;
+  const pages = [];
+  let currentRows = [];
+  let currentHeight = 0;
+
+  rows.forEach((row) => {
+    const added = currentRows.length === 0 ? row.height : row.height + ROW_GAP;
+    if (currentRows.length > 0 && currentHeight + added > MAX_PAGE_HEIGHT) {
+      pages.push(currentRows);
+      currentRows = [row];
+      currentHeight = row.height;
+    } else {
+      currentRows.push(row);
+      currentHeight += added;
+    }
+  });
+  if (currentRows.length > 0) pages.push(currentRows);
+
+  return pages
+    .map((pageRows, pageIdx) => {
+      const cardsHtml = pageRows
+        .flatMap((r) => r.items)
+        .map((item) => renderEvidenceItemCard(item, theme))
+        .join("");
+
+      return `
+      <div class="a4-evidence-page">
+        <!-- Slim top bar only (No bottom footer to fit >= 8 ID cards per page) -->
+        <div class="flex justify-between items-center px-2.5 py-1 rounded mb-2 text-white" style="background: ${theme.gradient};">
+          <div class="text-xs font-bold truncate">
+            ส.ด. 2569 • หลักฐาน: ${escapeHtml(packageTitle)} (แผ่นที่ ${pageIdx + 1}/${pages.length})
+          </div>
+          <div class="text-[11px] whitespace-nowrap" style="color: ${theme.subtext};">
+            ผู้จัดทำ: ครูนภรัฐ อุดเต็น
+          </div>
+        </div>
+
+        <div class="evidence-grid">
+          ${cardsHtml}
+        </div>
+      </div>
+    `;
+    })
+    .join("");
+}
+
+function buildRosterTableRowsHtml(rows, theme, showEventCol) {
+  if (rows.length === 0) {
+    return `<tr><td colspan="${showEventCol ? 7 : 7}" class="border border-zinc-400 p-3 text-center text-zinc-400">ยังไม่ได้จัดตัวนักกีฬา</td></tr>`;
+  }
+
+  return rows
+    .map((r, idx) => {
+      const st = r.student;
+      if (!st) {
+        return `
+        <tr>
+          <td class="border border-zinc-400 px-1.5 py-1.5 text-center">${idx + 1}</td>
+          <td class="border border-zinc-400 px-2 py-1.5 font-semibold text-zinc-600">${escapeHtml(r.labelCol)}</td>
+          <td class="border border-zinc-400 px-1.5 py-1.5 text-center font-bold">${escapeHtml(r.slotLabel)}</td>
+          <td class="border border-zinc-400 px-1.5 py-1.5 text-center text-zinc-400 text-[10px]">-</td>
+          <td class="border border-zinc-400 px-2 py-1.5 text-zinc-400 italic" colspan="3">ยังไม่ได้จัดตัวนักกีฬา</td>
+        </tr>
+      `;
+      }
+
+      return `
+      <tr>
+        <td class="border border-zinc-400 px-1.5 py-1 text-center font-semibold">${idx + 1}</td>
+        ${
+          showEventCol
+            ? `<td class="border border-zinc-400 px-2 py-1 text-xs font-semibold text-zinc-800">${escapeHtml(r.labelCol)}</td>`
+            : `<td class="border border-zinc-400 px-1.5 py-1 text-center font-bold" style="color: ${theme.text};">${escapeHtml(r.slotLabel)}</td>`
+        }
+        ${
+          showEventCol
+            ? `<td class="border border-zinc-400 px-1.5 py-1 text-center text-xs font-bold" style="color: ${theme.text};">${escapeHtml(r.slotLabel)}</td>`
+            : ""
+        }
+        <td class="border border-zinc-400 p-1 text-center">
+          <div class="w-11 h-14 mx-auto border border-zinc-300 bg-white overflow-hidden flex items-center justify-center rounded-sm">
+            ${st.photoData ? `<img src="${st.photoData}" class="w-full h-full object-cover">` : `<span class="text-[9px] text-zinc-400">ไม่มีรูป</span>`}
+          </div>
+        </td>
+        <td class="border border-zinc-400 px-2 py-1 font-semibold text-zinc-900">
+          ${escapeHtml(st.fullName)}
+          ${showEventCol ? `<div class="text-[10px] text-zinc-500">กลุ่ม ${escapeHtml(r.group)} • ช่อง ${escapeHtml(r.lane)}</div>` : ""}
+        </td>
+        <td class="border border-zinc-400 px-1.5 py-1 text-center">${escapeHtml(st.className)}</td>
+        <td class="border border-zinc-400 px-1.5 py-1 text-center text-xs">${escapeHtml(st.dob)}</td>
+        <td class="border border-zinc-400 px-1.5 py-1 text-center text-xs">${escapeHtml(st.citizenId || "-")}</td>
+      </tr>
+    `;
+    })
+    .join("");
+}
+
+function renderIndividualPackagePages(ageGroup, gender, trackEvents, fieldEvents, includeEvidence) {
+  const theme = AGE_PRINT_THEMES[ageGroup] || AGE_PRINT_THEMES[10];
+  const pkgTitle = `รายการแข่งเดี่ยว รุ่น ${ageGroup} ปี ${gender}`;
+
+  const toRowEntries = (evList) => {
+    const out = [];
+    evList.forEach((ev) => {
+      const assigned = (ev.athletes || []).filter((a) => a.studentId);
+      if (assigned.length === 0) {
+        out.push({
+          labelCol: ev.name,
+          slotLabel: "ตัวจริง",
+          group: ev.group,
+          lane: ev.lane,
+          student: null
+        });
+      } else {
+        assigned.forEach((a) => {
+          const st = studentsList.find((s) => s.id === a.studentId);
+          out.push({
+            labelCol: ev.name,
+            slotLabel: a.slotLabel,
+            group: ev.group,
+            lane: ev.lane,
+            student: st || null
+          });
+        });
+      }
+    });
+    return out;
+  };
+
+  const trackRows = toRowEntries(trackEvents).map((r) => ({ ...r, section: "track" }));
+  const fieldRows = toRowEntries(fieldEvents).map((r) => ({ ...r, section: "field" }));
+  const allRows = [...trackRows, ...fieldRows];
+
+  // Paginate roster rows if many athletes (> 10 rows per A4 page)
+  const MAX_ROWS_PER_PAGE = 10;
+  const rosterChunks = [];
+  for (let i = 0; i < allRows.length; i += MAX_ROWS_PER_PAGE) {
+    rosterChunks.push(allRows.slice(i, i + MAX_ROWS_PER_PAGE));
+  }
+  if (rosterChunks.length === 0) rosterChunks.push([]);
+
+  let html = "";
+  rosterChunks.forEach((chunk, chunkIdx) => {
+    const isLastRoster = chunkIdx === rosterChunks.length - 1;
+    const chunkTrack = chunk.filter((r) => r.section === "track");
+    const chunkField = chunk.filter((r) => r.section === "field");
+
+    const trackSectionHtml =
+      chunkTrack.length > 0
+        ? `
+      <div class="mb-2.5">
+        <div class="text-xs font-bold px-2.5 py-1 rounded-t text-white" style="background: ${theme.primary};">
+          🏃 หมวด ก: ประเภทลู่ (วิ่งเดี่ยว)
+        </div>
+        <table class="w-full border-collapse text-xs">
+          <thead>
+            <tr style="background: ${theme.light}; color: ${theme.text};">
+              <th class="border border-zinc-400 px-1 py-1 w-7">ที่</th>
+              <th class="border border-zinc-400 px-1.5 py-1 w-40">รายการแข่งขัน</th>
+              <th class="border border-zinc-400 px-1 py-1 w-14">ตำแหน่ง</th>
+              <th class="border border-zinc-400 px-1 py-1 w-14">รูปถ่าย</th>
+              <th class="border border-zinc-400 px-1.5 py-1">ชื่อ - นามสกุล</th>
+              <th class="border border-zinc-400 px-1 py-1 w-10">ชั้น</th>
+              <th class="border border-zinc-400 px-1 py-1 w-20">ว/ด/ป เกิด</th>
+              <th class="border border-zinc-400 px-1 py-1 w-28">เลขประชาชน</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${buildRosterTableRowsHtml(chunkTrack, theme, true)}
+          </tbody>
+        </table>
+      </div>
+    `
+        : "";
+
+    const fieldSectionHtml =
+      chunkField.length > 0
+        ? `
+      <div class="mb-2">
+        <div class="text-xs font-bold px-2.5 py-1 rounded-t text-white" style="background: ${theme.primary};">
+          🎯 หมวด ข: ประเภทลาน (กระโดดไกล / ทุ่มน้ำหนัก / เตะบอล)
+        </div>
+        <table class="w-full border-collapse text-xs">
+          <thead>
+            <tr style="background: ${theme.light}; color: ${theme.text};">
+              <th class="border border-zinc-400 px-1 py-1 w-7">ที่</th>
+              <th class="border border-zinc-400 px-1.5 py-1 w-40">รายการแข่งขัน</th>
+              <th class="border border-zinc-400 px-1 py-1 w-14">ตำแหน่ง</th>
+              <th class="border border-zinc-400 px-1 py-1 w-14">รูปถ่าย</th>
+              <th class="border border-zinc-400 px-1.5 py-1">ชื่อ - นามสกุล</th>
+              <th class="border border-zinc-400 px-1 py-1 w-10">ชั้น</th>
+              <th class="border border-zinc-400 px-1 py-1 w-20">ว/ด/ป เกิด</th>
+              <th class="border border-zinc-400 px-1 py-1 w-28">เลขประชาชน</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${buildRosterTableRowsHtml(chunkField, theme, true)}
+          </tbody>
+        </table>
+      </div>
+    `
+        : "";
+
+    html += `
+      <div class="a4-page">
+        <div>
+          ${renderFormalHeader(
+            theme,
+            "แบบส่งรายชื่อนักกรีฑา ประเภทเดี่ยว (แยกลู่และลาน)",
+            `${pkgTitle}${rosterChunks.length > 1 ? ` (หน้า ${chunkIdx + 1}/${rosterChunks.length})` : ""}`,
+            "เชียงกลางเกมส์ ปีการศึกษา 2569"
+          )}
+          ${trackSectionHtml}
+          ${fieldSectionHtml}
+        </div>
+        ${isLastRoster ? renderDirectorSingleFooterBox(theme) : `<div></div>`}
+      </div>
+    `;
+  });
+
+  if (includeEvidence) {
+    // Deduplicate students across individual events in this (ageGroup, gender) package
+    const uniqueMap = new Map();
+    [...trackEvents, ...fieldEvents].forEach((ev) => {
+      (ev.athletes || []).forEach((a) => {
+        if (!a.studentId) return;
+        const st = studentsList.find((s) => s.id === a.studentId);
+        if (!st) return;
+        const tag = `${ev.name.replace(/\s+รุ่น\s+\d+\s+ปี.*/, "")} (${a.slotLabel})`;
+        if (!uniqueMap.has(st.id)) {
+          uniqueMap.set(st.id, { student: st, tags: [tag] });
+        } else {
+          uniqueMap.get(st.id).tags.push(tag);
+        }
+      });
+    });
+
+    const evidenceItems = Array.from(uniqueMap.values()).map((entry) => ({
+      student: entry.student,
+      eventSummary: entry.tags.join(", ")
+    }));
+
+    html += buildEvidencePagesHtml(pkgTitle, ageGroup, evidenceItems);
+  }
+
+  return html;
+}
+
+function renderRelayPackagePages(ev, includeEvidence) {
+  const theme = AGE_PRINT_THEMES[ev.ageGroup] || AGE_PRINT_THEMES[10];
+  const assigned = (ev.athletes || []).filter((a) => a.studentId);
+
+  const rosterRows = assigned.map((a) => ({
+    labelCol: ev.name,
+    slotLabel: a.slotLabel,
+    group: ev.group,
+    lane: ev.lane,
+    student: studentsList.find((s) => s.id === a.studentId) || null
+  }));
+
+  let html = `
+    <div class="a4-page">
+      <div>
+        ${renderFormalHeader(
+          theme,
+          "แบบส่งรายชื่อนักกรีฑา ประเภทวิ่งผลัด เชียงกลางเกมส์ 2569",
+          `${ev.name}`,
+          `${ev.group} • ช่องวิ่งที่ ${ev.lane} (รุ่น ${ev.ageGroup} ปี)`
+        )}
+
+        <table class="w-full border-collapse text-xs">
+          <thead>
+            <tr style="background: ${theme.primary}; color: #ffffff;">
+              <th class="border border-zinc-500 px-1.5 py-1.5 w-8">ที่</th>
+              <th class="border border-zinc-500 px-1.5 py-1.5 w-16">ตำแหน่ง/ไม้</th>
+              <th class="border border-zinc-500 px-1.5 py-1.5 w-14">รูปถ่าย</th>
+              <th class="border border-zinc-500 px-2 py-1.5">ชื่อ - นามสกุล นักเรียน</th>
+              <th class="border border-zinc-500 px-1.5 py-1.5 w-12">ชั้น</th>
+              <th class="border border-zinc-500 px-1.5 py-1.5 w-24">ว/ด/ป เกิด</th>
+              <th class="border border-zinc-500 px-1.5 py-1.5 w-32">เลขประจำตัวประชาชน</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${buildRosterTableRowsHtml(rosterRows, theme, false)}
+          </tbody>
+        </table>
+      </div>
+
+      ${renderDirectorSingleFooterBox(theme)}
+    </div>
+  `;
+
+  if (includeEvidence && assigned.length > 0) {
+    const evidenceItems = assigned
+      .map((a) => {
+        const st = studentsList.find((s) => s.id === a.studentId);
+        if (!st) return null;
+        return {
+          student: st,
+          eventSummary: `${a.slotLabel}`
+        };
+      })
+      .filter(Boolean);
+
+    html += buildEvidencePagesHtml(ev.name, ev.ageGroup, evidenceItems);
+  }
+
+  return html;
+}
+
+window.renderPrintPages = function () {
+  const scope = document.getElementById("printScopeSelect")?.value || "assigned";
+  const categoryMode = document.getElementById("printCategorySelect")?.value || "both";
+  const includeEvidence = document.getElementById("printIncludeEvidence")?.checked ?? true;
+
   const container = document.getElementById("printPagesContainer");
-  if (targetEvents.length === 0) {
+  if (!container) return;
+
+  const targetAges = scope.startsWith("age_") ? [Number(scope.replace("age_", ""))] : AGE_GROUPS;
+  let pagesHtml = "";
+
+  // 1. Individual Events Packages (Merged per Age + Gender, Track & Field separated)
+  if (categoryMode === "both" || categoryMode === "individual") {
+    targetAges.forEach((age) => {
+      GENDERS.forEach((gender) => {
+        let indEvents = eventsList.filter(
+          (ev) =>
+            Number(ev.ageGroup) === age &&
+            ev.gender === gender &&
+            ev.category !== "วิ่งผลัด"
+        );
+
+        if (scope === "assigned") {
+          indEvents = indEvents.filter((ev) => (ev.athletes || []).some((a) => a.studentId));
+        }
+
+        if (indEvents.length === 0) return;
+
+        const trackEvents = indEvents.filter((ev) => ev.category === "วิ่งเดี่ยว");
+        const fieldEvents = indEvents.filter((ev) => ev.category !== "วิ่งเดี่ยว");
+
+        pagesHtml += renderIndividualPackagePages(age, gender, trackEvents, fieldEvents, includeEvidence);
+      });
+    });
+  }
+
+  // 2. Relay Events Packages (1 package per Relay Event)
+  if (categoryMode === "both" || categoryMode === "relay") {
+    let relayEvents = eventsList.filter(
+      (ev) => ev.category === "วิ่งผลัด" && targetAges.includes(Number(ev.ageGroup))
+    );
+    if (scope === "assigned") {
+      relayEvents = relayEvents.filter((ev) => (ev.athletes || []).some((a) => a.studentId));
+    }
+
+    relayEvents.forEach((ev) => {
+      pagesHtml += renderRelayPackagePages(ev, includeEvidence);
+    });
+  }
+
+  if (!pagesHtml) {
     container.innerHTML = `
-      <div class="bg-white rounded-xl p-10 text-center text-slate-500 border border-slate-200">
-        ยังไม่มีรายการแข่งขันที่จัดตัวนักกีฬาในขอบเขตที่เลือกครับ กรุณาไปที่แท็บ <b>"2. จัดตัวนักกีฬา"</b> ก่อนนะครับ
+      <div class="bg-white rounded-xl p-10 text-center text-zinc-500 border border-zinc-200">
+        ยังไม่มีรายการแข่งขันที่จัดตัวนักกีฬาในขอบเขตที่เลือกครับ กรุณาไปที่แท็บ <b>"2. จัดตัวนักกีฬา"</b> หรือเปลี่ยนขอบเขตการพิมพ์ด้านบนครับ
       </div>
     `;
     return;
   }
 
-  let pagesHtml = "";
-  targetEvents.forEach((ev, index) => {
-    const assigned = ev.athletes || [];
-    const tableRows = assigned
-      .map((a, i) => {
-        const st = studentsList.find((s) => s.id === a.studentId);
-        if (!st) return "";
-        return `
-        <tr class="border-b border-slate-300">
-          <td class="border border-slate-400 px-2 py-2 text-center font-semibold">${i + 1}</td>
-          <td class="border border-slate-400 px-2 py-2 text-center font-bold text-blue-900">${a.slotLabel}</td>
-          <td class="border border-slate-400 px-2 py-2 font-semibold">${st.fullName}</td>
-          <td class="border border-slate-400 px-2 py-2 text-center">${st.className}</td>
-          <td class="border border-slate-400 px-2 py-2 text-center">${st.dob}</td>
-          <td class="border border-slate-400 px-2 py-2 text-center">${st.citizenId || "-"}</td>
-        </tr>
-      `;
-      })
-      .join("");
-
-    // Evidence cards (Photo + Doc)
-    let evidenceCardsHtml = "";
-    if (includeEvidence && assigned.length > 0) {
-      evidenceCardsHtml = `
-        <div class="mt-3">
-          <div class="text-sm font-bold text-blue-900 mb-1.5">หลักฐานนักกีฬา (${ev.name})</div>
-          <div class="grid grid-cols-2 gap-2.5">
-            ${assigned
-              .map((a) => {
-                const st = studentsList.find((s) => s.id === a.studentId);
-                if (!st) return "";
-                return `
-                <div class="border border-slate-400 rounded p-2 flex gap-2 items-center bg-slate-50/40">
-                  <div class="w-16 h-20 border border-slate-300 bg-white flex-shrink-0 overflow-hidden flex items-center justify-center">
-                    ${st.photoData ? `<img src="${st.photoData}" class="w-full h-full object-cover">` : `<span class="text-[10px] text-slate-400">ไม่มีรูป</span>`}
-                  </div>
-                  <div class="flex-1 min-w-0">
-                    <div class="font-bold text-xs text-slate-900 truncate">${a.slotLabel}: ${st.shortName}</div>
-                    <div class="text-[11px] text-slate-600">ชั้น ${st.className} • ${st.docType || "บัตร ปชช."}</div>
-                    <div class="mt-1 h-14 w-full border border-slate-300 bg-white overflow-hidden flex items-center justify-center">
-                      ${st.docData ? `<img src="${st.docData}" class="w-full h-full object-contain">` : `<span class="text-[10px] text-slate-400">ยังไม่มีหลักฐาน</span>`}
-                    </div>
-                  </div>
-                </div>
-              `;
-              })
-              .join("")}
-          </div>
-        </div>
-      `;
-    }
-
-    pagesHtml += `
-      <div class="a4-page">
-        <div>
-          <!-- Official Header with Credit -->
-          <div class="flex justify-between items-center border-b-2 border-blue-900 pb-1.5 mb-2">
-            <span class="ch-badge text-xs">โรงเรียนบ้านส้อเด่นพัฒนา (ส.ด.)</span>
-            <span class="text-sm font-bold text-blue-900">แบบส่งรายชื่อและหลักฐานนักกรีฑา เชียงกลางเกมส์ 2569</span>
-            <span class="text-xs font-semibold text-slate-600">ผู้จัดทำ: <strong class="text-blue-900">ครูนภรัฐ อุดเต็น</strong></span>
-          </div>
-
-          <!-- Solid Blue Rounded Banner -->
-          <div class="master-banner px-4 py-2 flex justify-between items-center mb-3">
-            <div class="text-base font-bold text-white">${ev.name}</div>
-            <div class="text-xs text-blue-100">${ev.group} • ช่องวิ่งที่ ${ev.lane} (รุ่น ${ev.ageGroup} ปี)</div>
-          </div>
-
-          <!-- Athletes Table -->
-          <table class="w-full border-collapse text-sm">
-            <thead>
-              <tr class="bg-blue-900 text-white">
-                <th class="border border-blue-900 px-2 py-1.5 w-10">ที่</th>
-                <th class="border border-blue-900 px-2 py-1.5 w-20">ตำแหน่ง/ไม้</th>
-                <th class="border border-blue-900 px-2 py-1.5">ชื่อ - นามสกุล นักเรียน</th>
-                <th class="border border-blue-900 px-2 py-1.5 w-14">ชั้น</th>
-                <th class="border border-blue-900 px-2 py-1.5 w-28">ว/ด/ป เกิด</th>
-                <th class="border border-blue-900 px-2 py-1.5 w-36">เลขประจำตัวประชาชน</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${tableRows || `<tr><td colspan="6" class="border border-slate-400 p-4 text-center text-slate-400">ยังไม่ได้จัดตัวนักกีฬา</td></tr>`}
-            </tbody>
-          </table>
-
-          ${evidenceCardsHtml}
-        </div>
-
-        <!-- Certification & Signatures -->
-        <div>
-          <div class="mt-4 border border-dashed border-slate-400 rounded-lg p-3 bg-slate-50/50 grid grid-cols-2 gap-4 text-center text-xs">
-            <div>
-              <div class="mb-5">ขอรับรองว่าเป็นนักเรียนโรงเรียนบ้านส้อเด่นพัฒนาจริง</div>
-              <div>ลงชื่อ ............................................................ ครูผู้ฝึกสอน</div>
-              <div class="font-bold mt-0.5">( นายนภรัฐ อุดเต็น )</div>
-              <div>ครู โรงเรียนบ้านส้อเด่นพัฒนา</div>
-            </div>
-            <div>
-              <div class="mb-5">ขอรับรองและอนุมัติส่งรายชื่อเข้าร่วมการแข่งขัน</div>
-              <div>ลงชื่อ ............................................................ ผู้รับรอง</div>
-              <div class="font-bold mt-0.5">( นายนพคุณ เกรียงศักดานุกูล )</div>
-              <div>ผู้อำนวยการโรงเรียนบ้านส้อเด่นพัฒนา</div>
-            </div>
-          </div>
-          <div class="flex justify-between text-[11px] text-slate-500 border-t border-slate-200 pt-1 mt-2">
-            <span>เชียงกลางเกมส์ ปีการศึกษา 2569 • อักษรย่อ ส.ด.</span>
-            <span>หน้า ${index + 1} จาก ${targetEvents.length}</span>
-            <span>ครูผู้ฝึกสอน: ครูนภรัฐ อุดเต็น</span>
-          </div>
-        </div>
-      </div>
-    `;
-  });
-
   container.innerHTML = pagesHtml;
 };
 
-// ==================== TAB 4: LIVE RESULTS & MEDAL TALLY ====================
+// ==================== TAB 5: LIVE RESULTS & MEDAL TALLY ====================
 function renderResultsTab() {
   const gold = eventsList.filter((e) => e.resultMedal === "gold").length;
   const silver = eventsList.filter((e) => e.resultMedal === "silver").length;
   const bronze = eventsList.filter((e) => e.resultMedal === "bronze").length;
 
-  document.getElementById("medal-gold-count").textContent = gold;
+  const gEl = document.getElementById("medal-gold-count");
+  if (!gEl) return;
+  gEl.textContent = gold;
   document.getElementById("medal-silver-count").textContent = silver;
   document.getElementById("medal-bronze-count").textContent = bronze;
   document.getElementById("medal-total-count").textContent = gold + silver + bronze;
@@ -853,7 +1507,7 @@ window.setResultFilter = function (mode) {
   document.querySelectorAll(".res-filter-btn").forEach((b) => {
     const match = b.dataset.res === mode;
     b.className = `res-filter-btn px-3 py-1 rounded-lg text-sm font-semibold ${
-      match ? "bg-blue-700 text-white" : "bg-slate-100 text-slate-700"
+      match ? "bg-orange-600 text-white" : "bg-zinc-100 text-zinc-700"
     }`;
   });
   renderResultsList();
@@ -870,6 +1524,8 @@ window.renderResultsList = function () {
   });
 
   const container = document.getElementById("resultsListContainer");
+  if (!container) return;
+
   container.innerHTML = filtered
     .map((ev) => {
       const m = ev.resultMedal || "";
@@ -883,14 +1539,14 @@ window.renderResultsList = function () {
         .join(", ");
 
       return `
-      <div class="bg-white rounded-xl border border-slate-200 p-3 shadow-sm flex flex-wrap items-center justify-between gap-3">
+      <div class="bg-white rounded-xl border border-zinc-200 p-3 shadow-sm flex flex-wrap items-center justify-between gap-3">
         <div class="flex-1 min-w-[220px]">
           <div class="flex items-center gap-2">
-            <span class="text-xs font-bold bg-blue-900 text-white px-2 py-0.5 rounded">รุ่น ${ev.ageGroup} ปี</span>
-            <span class="text-xs font-semibold text-slate-500">${ev.group} • ช่อง ${ev.lane}</span>
+            <span class="text-xs font-bold bg-zinc-700 text-white px-2 py-0.5 rounded">รุ่น ${ev.ageGroup} ปี</span>
+            <span class="text-xs font-semibold text-zinc-500">${escapeHtml(ev.group)} • ช่อง ${escapeHtml(ev.lane)}</span>
           </div>
-          <div class="font-bold text-slate-900 text-base mt-1">${ev.no}. ${ev.name}</div>
-          <div class="text-xs text-slate-500">นักกีฬา: ${athletesNames || "ยังไม่ระบุตัวจริง"}</div>
+          <div class="font-bold text-zinc-900 text-base mt-1">${ev.no}. ${escapeHtml(ev.name)}</div>
+          <div class="text-xs text-zinc-500">นักกีฬา: ${escapeHtml(athletesNames || "ยังไม่ระบุตัวจริง")}</div>
         </div>
 
         <div class="flex flex-wrap items-center gap-1.5">
@@ -899,15 +1555,15 @@ window.renderResultsList = function () {
             🥇 ทอง (ที่ 1)
           </button>
           <button onclick="saveEventResult('${ev.id}', 'silver')"
-            class="px-3 py-1.5 rounded-lg text-xs font-bold border ${m === "silver" ? "bg-slate-400 text-white border-slate-500 shadow" : "bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200"}">
+            class="px-3 py-1.5 rounded-lg text-xs font-bold border ${m === "silver" ? "bg-zinc-400 text-white border-zinc-500 shadow" : "bg-zinc-100 text-zinc-700 border-zinc-300 hover:bg-zinc-200"}">
             🥈 เงิน (ที่ 2)
           </button>
           <button onclick="saveEventResult('${ev.id}', 'bronze')"
-            class="px-3 py-1.5 rounded-lg text-xs font-bold border ${m === "bronze" ? "bg-orange-400 text-white border-orange-500 shadow" : "bg-orange-50 text-orange-800 border-orange-200 hover:bg-orange-100"}">
+            class="px-3 py-1.5 rounded-lg text-xs font-bold border ${m === "bronze" ? "bg-orange-500 text-white border-orange-600 shadow" : "bg-orange-50 text-orange-800 border-orange-200 hover:bg-orange-100"}">
             🥉 ทองแดง (ที่ 3)
           </button>
           <button onclick="saveEventResult('${ev.id}', 'other')"
-            class="px-3 py-1.5 rounded-lg text-xs font-bold border ${m === "other" ? "bg-blue-600 text-white border-blue-700 shadow" : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"}">
+            class="px-3 py-1.5 rounded-lg text-xs font-bold border ${m === "other" ? "bg-zinc-700 text-white border-zinc-800 shadow" : "bg-zinc-50 text-zinc-600 border-zinc-200 hover:bg-zinc-100"}">
             ร่วมแข่ง (4+)
           </button>
           ${
