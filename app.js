@@ -24,6 +24,7 @@ let currentCropTarget = { studentId: null, field: null }; // field: 'photoData' 
 // Lineup Modal state
 let currentEditingEvent = null;
 let tempAthletes = []; // array of { slotLabel, studentId }
+let selectedTargetSlotIdx = 0;
 let allowedClassesInModal = new Set();
 
 const ALL_CLASSES = ["อ.2", "อ.3", "ป.1", "ป.2", "ป.3", "ป.4", "ป.5", "ป.6"];
@@ -536,7 +537,13 @@ window.renderEventsList = function () {
             ? "bg-emerald-50 text-emerald-800 border border-emerald-300 hover:bg-emerald-100"
             : "bg-orange-600 text-white hover:bg-orange-700"
         }">
-          ${isComplete ? "✏️ แก้ไข / ช่วยปรับรายชื่อ" : "➕ จัดตัวนักกีฬาลงรายการนี้"}
+          ${
+            isComplete
+              ? ev.category === "วิ่งผลัด"
+                ? "🔄 แก้ไข / สลับไม้วิ่งผลัด"
+                : "✏️ แก้ไข / ช่วยปรับรายชื่อ"
+              : "➕ จัดตัวนักกีฬาลงรายการนี้"
+          }
         </button>
       </div>
     `;
@@ -569,10 +576,20 @@ window.openLineupModal = function (eventId) {
   }
 
   (ev.athletes || []).forEach((saved) => {
-    const target = slots.find((s) => s.slotLabel === saved.slotLabel);
-    if (target) target.studentId = saved.studentId;
+    let target = slots.find((s) => s.slotLabel === saved.slotLabel);
+    if (!target) {
+      target = { slotLabel: saved.slotLabel, studentId: "" };
+      slots.push(target);
+    }
+    target.studentId = saved.studentId;
   });
   tempAthletes = slots;
+  const firstEmpty = tempAthletes.findIndex((s) => !s.studentId);
+  selectedTargetSlotIdx = firstEmpty >= 0 ? firstEmpty : 0;
+
+  const isRelay = ev.category === "วิ่งผลัด" || ev.mainSlots > 1;
+  document.getElementById("relayHelperTip")?.classList.toggle("hidden", !isRelay);
+  document.getElementById("addReserveSlotBtn")?.classList.toggle("hidden", !isRelay);
 
   allowedClassesInModal = new Set();
   if (ev.ageGroup === 6) {
@@ -623,37 +640,102 @@ window.toggleClassInModal = function (cls, isChecked) {
   renderLineupCandidates();
 };
 
+window.selectTargetSlot = function (idx) {
+  selectedTargetSlotIdx = idx;
+  renderLineupSlots();
+};
+
+window.swapAthleteSlots = function (fromIdx, toIdx) {
+  if (fromIdx === toIdx || toIdx < 0 || toIdx >= tempAthletes.length) return;
+  const tmpId = tempAthletes[fromIdx].studentId;
+  tempAthletes[fromIdx].studentId = tempAthletes[toIdx].studentId;
+  tempAthletes[toIdx].studentId = tmpId;
+  selectedTargetSlotIdx = toIdx;
+  renderLineupSlots();
+  renderLineupCandidates();
+  showToast(`สลับ "${tempAthletes[fromIdx].slotLabel}" ↔ "${tempAthletes[toIdx].slotLabel}" แล้ว`);
+};
+
+window.addReserveSlot = function () {
+  const reserveNums = tempAthletes
+    .filter((s) => s.slotLabel.startsWith("สำรอง"))
+    .map((s) => Number(s.slotLabel.replace(/\D/g, "")) || 0);
+  const nextNum = reserveNums.length > 0 ? Math.max(...reserveNums) + 1 : 1;
+  tempAthletes.push({ slotLabel: `สำรอง ${nextNum}`, studentId: "" });
+  selectedTargetSlotIdx = tempAthletes.length - 1;
+  renderLineupSlots();
+};
+
 function renderLineupSlots() {
   const container = document.getElementById("lineupSlotsList");
+  const showReorder = tempAthletes.length > 1;
+
   container.innerHTML = tempAthletes
     .map((slot, idx) => {
       const st = studentsList.find((s) => s.id === slot.studentId);
       const isReserve = slot.slotLabel.includes("สำรอง");
+      const isTargeted = idx === selectedTargetSlotIdx;
+
+      const swapOptions = tempAthletes
+        .map((opt, optIdx) => `<option value="${optIdx}" ${optIdx === idx ? "selected" : ""}>${escapeHtml(opt.slotLabel)}</option>`)
+        .join("");
+
       return `
-      <div class="flex items-center justify-between border rounded-xl p-2.5 ${
-        st ? "bg-orange-50 border-orange-300" : isReserve ? "bg-amber-50/40 border-dashed border-amber-300" : "bg-zinc-50 border-dashed border-zinc-300"
-      }">
-        <div class="flex items-center gap-2.5">
-          <span class="text-xs font-bold px-2 py-1 rounded ${isReserve ? "bg-amber-200 text-amber-900" : "bg-zinc-700 text-white"}">
+      <div onclick="selectTargetSlot(${idx})"
+        class="flex flex-wrap items-center justify-between gap-2 border rounded-xl p-2 cursor-pointer transition ${
+          isTargeted ? "ring-2 ring-orange-500 " : ""
+        }${
+          st
+            ? "bg-orange-50 border-orange-300"
+            : isReserve
+            ? "bg-amber-50/40 border-dashed border-amber-300 hover:border-orange-400"
+            : "bg-zinc-50 border-dashed border-zinc-300 hover:border-orange-400"
+        }">
+        <div class="flex items-center gap-2 min-w-0 flex-1">
+          <span class="text-xs font-bold px-2 py-1 rounded flex-shrink-0 ${
+            isTargeted ? "bg-orange-600 text-white" : isReserve ? "bg-amber-200 text-amber-900" : "bg-zinc-700 text-white"
+          }">
             ${escapeHtml(slot.slotLabel)}
           </span>
           ${
             st
-              ? `<div class="flex items-center gap-2">
-                  ${st.photoData ? `<img src="${st.photoData}" class="w-8 h-10 object-cover rounded border">` : ""}
-                  <div>
-                    <div class="font-bold text-sm text-zinc-900">${escapeHtml(st.shortName)}</div>
-                    <div class="text-[11px] text-zinc-500">ชั้น ${escapeHtml(st.className)} • เกิด ${escapeHtml(st.dob)}</div>
+              ? `<div class="flex items-center gap-2 min-w-0">
+                  ${st.photoData ? `<img src="${st.photoData}" class="w-8 h-10 object-cover rounded border flex-shrink-0">` : ""}
+                  <div class="min-w-0">
+                    <div class="font-bold text-sm text-zinc-900 truncate">${escapeHtml(st.shortName)}</div>
+                    <div class="text-[11px] text-zinc-500 truncate">ชั้น ${escapeHtml(st.className)} • เกิด ${escapeHtml(st.dob)}</div>
                   </div>
                  </div>`
-              : `<span class="text-xs text-zinc-400">คลิกเลือกชื่อนักเรียนทางขวา...</span>`
+              : `<span class="text-xs ${isTargeted ? "text-orange-700 font-semibold" : "text-zinc-400"}">
+                  ${isTargeted ? "🎯 กำลังเลือกช่องนี้ — จิ้มชื่อนักเรียนทางขวา..." : "คลิกช่องนี้หรือเลือกนักเรียนทางขวา..."}
+                </span>`
           }
         </div>
-        ${
-          st
-            ? `<button onclick="removeAthleteFromSlot(${idx})" class="text-red-500 hover:bg-red-100 rounded-lg px-2 py-1 text-xs font-bold">ลบ</button>`
-            : ""
-        }
+
+        <div class="flex items-center gap-1 flex-shrink-0" onclick="event.stopPropagation()">
+          ${
+            showReorder && st
+              ? `
+              <button onclick="swapAthleteSlots(${idx}, ${idx - 1})" ${idx === 0 ? "disabled" : ""}
+                title="เลื่อนขึ้น 1 ไม้"
+                class="px-1.5 py-1 text-[11px] rounded border border-zinc-300 bg-white hover:bg-zinc-100 disabled:opacity-30 font-bold">▲</button>
+              <button onclick="swapAthleteSlots(${idx}, ${idx + 1})" ${idx === tempAthletes.length - 1 ? "disabled" : ""}
+                title="เลื่อนลง 1 ไม้"
+                class="px-1.5 py-1 text-[11px] rounded border border-zinc-300 bg-white hover:bg-zinc-100 disabled:opacity-30 font-bold">▼</button>
+              <select onchange="swapAthleteSlots(${idx}, Number(this.value))"
+                title="ย้าย/สลับไปไม้ที่ต้องการ"
+                class="text-[11px] border border-orange-300 bg-white rounded px-1 py-1 font-semibold text-zinc-700">
+                ${swapOptions}
+              </select>
+            `
+              : ""
+          }
+          ${
+            st
+              ? `<button onclick="removeAthleteFromSlot(${idx})" class="text-red-500 hover:bg-red-100 rounded-lg px-2 py-1 text-xs font-bold">ลบ</button>`
+              : ""
+          }
+        </div>
       </div>
     `;
     })
@@ -662,12 +744,14 @@ function renderLineupSlots() {
 
 window.removeAthleteFromSlot = function (idx) {
   tempAthletes[idx].studentId = "";
+  selectedTargetSlotIdx = idx;
   renderLineupSlots();
   renderLineupCandidates();
 };
 
 window.clearEventSlots = function () {
   tempAthletes.forEach((s) => (s.studentId = ""));
+  selectedTargetSlotIdx = 0;
   renderLineupSlots();
   renderLineupCandidates();
 };
@@ -747,12 +831,19 @@ window.renderLineupCandidates = function () {
 };
 
 window.assignAthleteQuick = function (studentId) {
-  const emptySlot = tempAthletes.find((s) => !s.studentId);
-  if (!emptySlot) {
-    showToast("⚠️ ครบทุกตำแหน่งแล้ว หากต้องการเปลี่ยนให้ลบออกก่อนครับ");
+  let targetIdx =
+    tempAthletes[selectedTargetSlotIdx] && !tempAthletes[selectedTargetSlotIdx].studentId
+      ? selectedTargetSlotIdx
+      : tempAthletes.findIndex((s) => !s.studentId);
+
+  if (targetIdx < 0) {
+    showToast("⚠️ ครบทุกตำแหน่งแล้ว หากต้องการเปลี่ยนให้กดลบ หรือใช้ปุ่มสลับไม้ครับ");
     return;
   }
-  emptySlot.studentId = studentId;
+
+  tempAthletes[targetIdx].studentId = studentId;
+  const nextEmpty = tempAthletes.findIndex((s) => !s.studentId);
+  selectedTargetSlotIdx = nextEmpty >= 0 ? nextEmpty : targetIdx;
   renderLineupSlots();
   renderLineupCandidates();
 };

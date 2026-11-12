@@ -559,10 +559,16 @@
         <!-- Left: Selected Slots -->
         <div class="lg:col-span-5 space-y-2">
           <div class="flex items-center justify-between">
-            <h4 class="font-bold text-zinc-800 text-sm">📌 รายชื่อผู้ลงแข่งขัน (คลิกเพื่อลบ/เปลี่ยน)</h4>
+            <h4 class="font-bold text-zinc-800 text-sm">📌 รายชื่อผู้ลงแข่งขัน / แก้ไขไม้วิ่ง</h4>
             <button onclick="clearEventSlots()" class="text-xs text-red-600 hover:underline">ล้างรายชื่อทั้งหมด</button>
           </div>
+          <div id="relayHelperTip" class="text-[11px] text-orange-800 bg-orange-50 border border-orange-200 rounded-lg px-2.5 py-1 hidden">
+            💡 สลับไม้วิ่งได้ทันทีด้วยปุ่ม <b>▲ ▼</b> หรือช่องเลือก <b>สลับไม้</b> (คลิกช่องว่างเพื่อเจาะจงใส่ไม้นั้น)
+          </div>
           <div id="lineupSlotsList" class="space-y-2"></div>
+          <button id="addReserveSlotBtn" onclick="addReserveSlot()" class="hidden w-full py-1.5 border border-dashed border-zinc-300 text-zinc-600 hover:bg-zinc-100 rounded-lg text-xs font-semibold">
+            ➕ เพิ่มช่องตัวสำรอง
+          </button>
         </div>
 
         <!-- Right: Candidate Students with Flexible Class Checkboxes -->
