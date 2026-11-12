@@ -178,13 +178,19 @@
       .no-print {
         display: none !important;
       }
-      body[data-print-target="summary"] #tab-print {
+      body:not([data-print-target="a4"]) #tab-print {
         display: none !important;
       }
       body[data-print-target="summary"] #summaryPrintArea {
         display: block !important;
       }
       body:not([data-print-target="summary"]) #summaryPrintArea {
+        display: none !important;
+      }
+      body[data-print-target="matches"] #matchesPrintArea {
+        display: block !important;
+      }
+      body:not([data-print-target="matches"]) #matchesPrintArea {
         display: none !important;
       }
       .a4-page {
@@ -255,11 +261,14 @@
       <button onclick="switchTab('summary')" id="tab-btn-summary" class="tab-btn px-4 py-2.5 text-sm sm:text-base font-semibold border-b-2 border-transparent text-zinc-600 hover:text-orange-700 whitespace-nowrap">
         📊 3. สรุปนักกีฬาทุกคน
       </button>
+      <button onclick="switchTab('matches')" id="tab-btn-matches" class="tab-btn px-4 py-2.5 text-sm sm:text-base font-semibold border-b-2 border-transparent text-zinc-600 hover:text-orange-700 whitespace-nowrap">
+        🏟️ 4. ข้อมูลการแข่ง & ลู่วิ่ง
+      </button>
       <button onclick="switchTab('print')" id="tab-btn-print" class="tab-btn px-4 py-2.5 text-sm sm:text-base font-semibold border-b-2 border-transparent text-zinc-600 hover:text-orange-700 whitespace-nowrap">
-        🖨️ 4. พิมพ์เอกสาร A4 พร้อมหลักฐาน
+        🖨️ 5. พิมพ์เอกสาร A4 พร้อมหลักฐาน
       </button>
       <button onclick="switchTab('results')" id="tab-btn-results" class="tab-btn px-4 py-2.5 text-sm sm:text-base font-semibold border-b-2 border-transparent text-zinc-600 hover:text-orange-700 whitespace-nowrap">
-        🏆 5. บันทึกผล & สรุปเหรียญสด
+        🏆 6. บันทึกผล & สรุปเหรียญสด
       </button>
     </div>
   </header>
@@ -416,7 +425,80 @@
     <!-- Hidden Print Container for Summary Tab -->
     <div id="summaryPrintArea" class="hidden"></div>
 
-    <!-- ==================== TAB 4: PRINT A4 STUDIO ==================== -->
+    <!-- ==================== TAB 4: COMPETITION INFO & LANES ==================== -->
+    <section id="tab-matches" class="no-print hidden space-y-4">
+      <div class="master-banner p-4 flex flex-wrap justify-between items-center gap-3 shadow-sm">
+        <div>
+          <h2 class="text-xl font-bold text-white">🏟️ ข้อมูลการแข่งขัน ช่องวิ่ง และคู่แข่งของ ส.ด. (50 รายการ)</h2>
+          <p class="text-sm text-orange-100">เชียงกลางเกมส์ ปีการศึกษา 2569 • วันที่ 3-4 ธันวาคม 2569 ณ สนามกีฬาโรงเรียนพระพุทธบาทวิทยา • ชิงเหรียญทุกกลุ่ม ไม่มีรอบคัดเลือก</p>
+        </div>
+        <button onclick="printMatchesSheet()" class="bg-white text-orange-700 hover:bg-orange-50 font-bold px-4 py-2 rounded-lg shadow flex items-center gap-2 text-sm sm:text-base">
+          🖨️ พิมพ์โพยช่องวิ่ง & คู่แข่ง
+        </button>
+      </div>
+
+      <!-- Competition KPI Cards -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div class="bg-white border border-zinc-200 rounded-xl p-3 text-center shadow-sm">
+          <div class="text-xs font-bold text-zinc-500">รายการ ส.ด. ทั้งหมด</div>
+          <div id="match-kpi-total" class="text-2xl font-extrabold text-zinc-800 mt-0.5">50</div>
+        </div>
+        <div class="bg-amber-50 border border-amber-300 rounded-xl p-3 text-center shadow-sm">
+          <div class="text-xs font-bold text-amber-900">⭐ ลุ้นเหรียญสูง (ไม่เกิน 5 ทีม)</div>
+          <div id="match-kpi-highchance" class="text-2xl font-extrabold text-amber-700 mt-0.5">0</div>
+        </div>
+        <div class="bg-orange-50 border border-orange-200 rounded-xl p-3 text-center shadow-sm">
+          <div class="text-xs font-bold text-orange-800">แข่งกลุ่มละ 6 ทีม</div>
+          <div id="match-kpi-6teams" class="text-2xl font-extrabold text-orange-600 mt-0.5">0</div>
+        </div>
+        <div class="bg-zinc-100 border border-zinc-300 rounded-xl p-3 text-center shadow-sm">
+          <div class="text-xs font-bold text-zinc-700">แข่งกลุ่มละ 7 ทีม</div>
+          <div id="match-kpi-7teams" class="text-2xl font-extrabold text-zinc-700 mt-0.5">0</div>
+        </div>
+      </div>
+
+      <!-- Matches Filters -->
+      <div class="bg-white p-3 rounded-xl border border-zinc-200 shadow-sm flex flex-wrap items-center gap-2.5 justify-between">
+        <div class="flex flex-wrap items-center gap-2">
+          <select id="matchAgeFilter" onchange="renderMatchesTab()" class="border border-zinc-300 rounded-lg px-2.5 py-1.5 text-sm font-medium bg-white">
+            <option value="all">ทุกรุ่นอายุ (50 รายการ)</option>
+            <option value="6">รุ่น 6 ปี อนุบาล (10)</option>
+            <option value="8">รุ่น 8 ปี (10)</option>
+            <option value="10">รุ่น 10 ปี (14)</option>
+            <option value="12">รุ่น 12 ปี (16)</option>
+          </select>
+
+          <select id="matchCategoryFilter" onchange="renderMatchesTab()" class="border border-zinc-300 rounded-lg px-2.5 py-1.5 text-sm font-medium bg-white">
+            <option value="all">ทุกประเภท (ลู่/ผลัด/ลาน)</option>
+            <option value="track">🏃 วิ่งเดี่ยว (ลู่)</option>
+            <option value="relay">🤝 วิ่งผลัด</option>
+            <option value="field">🎯 ประเภทลาน (กระโดดไกล/ทุ่ม/เตะบอล)</option>
+          </select>
+
+          <select id="matchGroupFilter" onchange="renderMatchesTab()" class="border border-zinc-300 rounded-lg px-2.5 py-1.5 text-sm font-medium bg-white">
+            <option value="all">ทุกกรุ๊ป (A / B / C)</option>
+            <option value="กรุ๊ป A">เฉพาะ กรุ๊ป A</option>
+            <option value="กรุ๊ป B">เฉพาะ กรุ๊ป B</option>
+            <option value="กรุ๊ป C">เฉพาะ กรุ๊ป C</option>
+          </select>
+
+          <label class="inline-flex items-center gap-1.5 bg-amber-50 border border-amber-200 px-2.5 py-1.5 rounded-lg text-xs font-bold text-amber-900 cursor-pointer">
+            <input type="checkbox" id="matchHighChanceOnly" onchange="renderMatchesTab()" class="rounded text-orange-600">
+            <span>⭐ เฉพาะไม่เกิน 5 ทีม</span>
+          </label>
+        </div>
+
+        <input id="matchSearchInput" type="text" placeholder="🔍 ค้นหารายการ, ช่อง, หรือคู่แข่ง (เช่น ต.ว., พ.ก.)..." oninput="renderMatchesTab()" class="border border-zinc-300 rounded-lg px-3 py-1.5 text-sm w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-orange-500">
+      </div>
+
+      <!-- Matches List -->
+      <div id="matchesListContainer" class="grid grid-cols-1 lg:grid-cols-2 gap-3"></div>
+    </section>
+
+    <!-- Hidden Print Container for Matches Tab -->
+    <div id="matchesPrintArea" class="hidden"></div>
+
+    <!-- ==================== TAB 5: PRINT A4 STUDIO ==================== -->
     <section id="tab-print" class="hidden space-y-4">
       <div class="no-print master-banner p-4 flex flex-wrap justify-between items-center gap-3 shadow-sm">
         <div>
@@ -603,6 +685,6 @@
   <!-- Toast Notification -->
   <div id="toastMsg" class="no-print fixed bottom-5 right-5 z-50 hidden bg-zinc-900 text-white px-4 py-2.5 rounded-xl shadow-lg text-sm font-medium border-l-4 border-orange-500"></div>
 
-  <script type="module" src="./app.js?v=2569-4"></script>
+  <script type="module" src="./app.js?v=2569-5"></script>
 </body>
 </html>

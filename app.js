@@ -228,6 +228,7 @@ function refreshUI() {
   if (activeTab === "upload") renderUploadTab();
   if (activeTab === "lineup") renderLineupTab();
   if (activeTab === "summary") renderSummaryTab();
+  if (activeTab === "matches") renderMatchesTab();
   if (activeTab === "print") renderPrintPages();
   if (activeTab === "results") renderResultsTab();
 }
@@ -235,7 +236,7 @@ function refreshUI() {
 // ==================== TAB SWITCHING ====================
 window.switchTab = function (tabName) {
   activeTab = tabName;
-  ["upload", "lineup", "summary", "print", "results"].forEach((t) => {
+  ["upload", "lineup", "summary", "matches", "print", "results"].forEach((t) => {
     const sec = document.getElementById(`tab-${t}`);
     const btn = document.getElementById(`tab-btn-${t}`);
     if (sec) sec.classList.toggle("hidden", t !== tabName);
@@ -1055,7 +1056,237 @@ window.printSummarySheet = function () {
   window.print();
 };
 
-// ==================== TAB 4: PRINT A4 STUDIO (SEPARATED ROSTER + PACKED EVIDENCE) ====================
+// ==================== TAB 4: COMPETITION INFO & LANES ====================
+function parseEventLanes(ev) {
+  const laneMap = new Map();
+  const rawParts = (ev.competitors || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  rawParts.forEach((p) => {
+    const m = p.match(/^ช่อง\s*(\d+)\s*:\s*(.+)$/);
+    if (m) {
+      laneMap.set(Number(m[1]), { laneNo: Number(m[1]), school: m[2].trim(), isSoden: false });
+    }
+  });
+
+  const sodenLaneNo = Number(ev.lane) || 0;
+  if (sodenLaneNo > 0) {
+    laneMap.set(sodenLaneNo, { laneNo: sodenLaneNo, school: "ส.ด.", isSoden: true });
+  }
+
+  const lanes = Array.from(laneMap.values()).sort((a, b) => a.laneNo - b.laneNo);
+  const rivals = lanes.filter((l) => !l.isSoden).map((l) => l.school);
+  return {
+    lanes,
+    rivals,
+    rivalCount: rivals.length,
+    rivalsJoined: rivals.join(", ")
+  };
+}
+
+function getFilteredMatchEvents() {
+  const ageFilter = document.getElementById("matchAgeFilter")?.value || "all";
+  const catFilter = document.getElementById("matchCategoryFilter")?.value || "all";
+  const groupFilter = document.getElementById("matchGroupFilter")?.value || "all";
+  const highChanceOnly = document.getElementById("matchHighChanceOnly")?.checked || false;
+  const search = (document.getElementById("matchSearchInput")?.value || "").trim().toLowerCase();
+
+  return eventsList.filter((ev) => {
+    if (ageFilter !== "all" && Number(ev.ageGroup) !== Number(ageFilter)) return false;
+    if (catFilter === "track" && ev.category !== "วิ่งเดี่ยว") return false;
+    if (catFilter === "relay" && ev.category !== "วิ่งผลัด") return false;
+    if (catFilter === "field" && (ev.category === "วิ่งเดี่ยว" || ev.category === "วิ่งผลัด")) return false;
+    if (groupFilter !== "all" && ev.group !== groupFilter) return false;
+    if (highChanceOnly && Number(ev.totalTeams) > 5) return false;
+
+    if (search) {
+      const assignedText = (ev.athletes || [])
+        .map((a) => studentsList.find((s) => s.id === a.studentId)?.fullName || "")
+        .join(" ");
+      const haystack = `${ev.name} ${ev.group} ช่อง ${ev.lane} ${ev.competitors} ${assignedText}`.toLowerCase();
+      if (!haystack.includes(search)) return false;
+    }
+    return true;
+  });
+}
+
+window.renderMatchesTab = function () {
+  const totalEl = document.getElementById("match-kpi-total");
+  if (!totalEl) return;
+
+  totalEl.textContent = eventsList.length;
+  document.getElementById("match-kpi-highchance").textContent = eventsList.filter((e) => Number(e.totalTeams) <= 5).length;
+  document.getElementById("match-kpi-6teams").textContent = eventsList.filter((e) => Number(e.totalTeams) === 6).length;
+  document.getElementById("match-kpi-7teams").textContent = eventsList.filter((e) => Number(e.totalTeams) >= 7).length;
+
+  const filtered = getFilteredMatchEvents();
+  const container = document.getElementById("matchesListContainer");
+
+  if (filtered.length === 0) {
+    container.innerHTML = `<div class="col-span-full bg-white rounded-xl border border-zinc-200 p-8 text-center text-zinc-400">ไม่พบรายการแข่งขันตามเงื่อนไขที่เลือก</div>`;
+    return;
+  }
+
+  container.innerHTML = filtered
+    .map((ev) => {
+      const theme = AGE_PRINT_THEMES[ev.ageGroup] || AGE_PRINT_THEMES[10];
+      const { lanes, rivalCount, rivalsJoined } = parseEventLanes(ev);
+      const isHighChance = Number(ev.totalTeams) <= 5;
+      const laneWord = ev.category === "วิ่งเดี่ยว" || ev.category === "วิ่งผลัด" ? "ลู่วิ่ง" : "ลำดับ/ช่อง";
+
+      const laneChipsHtml = lanes
+        .map((l) =>
+          l.isSoden
+            ? `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-orange-600 text-white border border-orange-700 shadow-sm">
+                 ช่อง ${l.laneNo}: ⭐ ส.ด. (เรา)
+               </span>`
+            : `<span class="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-zinc-100 text-zinc-700 border border-zinc-300">
+                 ช่อง ${l.laneNo}: ${escapeHtml(l.school)}
+               </span>`
+        )
+        .join("");
+
+      const assignedNames = (ev.athletes || [])
+        .filter((a) => a.studentId)
+        .map((a) => {
+          const st = studentsList.find((s) => s.id === a.studentId);
+          return st ? `${a.slotLabel}: ${st.shortName}` : "";
+        })
+        .filter(Boolean);
+
+      return `
+      <div class="bg-white rounded-xl border ${isHighChance ? "border-amber-300" : "border-zinc-200"} p-4 shadow-sm flex flex-col justify-between gap-3">
+        <div class="space-y-2">
+          <div class="flex flex-wrap items-center justify-between gap-1.5">
+            <div class="flex flex-wrap items-center gap-1.5">
+              <span class="text-xs font-bold text-white px-2 py-0.5 rounded" style="background:${theme.primary}">
+                รุ่น ${ev.ageGroup} ปี • ${escapeHtml(ev.category)}
+              </span>
+              <span class="text-xs font-bold px-2 py-0.5 rounded bg-zinc-800 text-white">
+                ${escapeHtml(ev.group)}
+              </span>
+            </div>
+            <span class="text-xs font-bold px-2.5 py-0.5 rounded-full ${isHighChance ? "bg-amber-100 text-amber-900 border border-amber-300" : "bg-orange-100 text-orange-800"}">
+              ${laneWord}ที่ ${escapeHtml(ev.lane)} • รวม ${ev.totalTeams} ทีม ${isHighChance ? "⭐" : ""}
+            </span>
+          </div>
+
+          <div>
+            <h3 class="font-bold text-zinc-900 text-base">${ev.no}. ${escapeHtml(ev.name)}</h3>
+            <p class="text-xs sm:text-sm text-zinc-700 mt-1">
+              📍 โรงเรียนเรา (<strong class="text-orange-700">ส.ด.</strong>) อยู่<strong>${laneWord}ที่ ${escapeHtml(ev.lane)}</strong>
+              • แข่งกับ <strong>${rivalCount} โรง</strong> ได้แก่:
+              <span class="font-semibold text-zinc-900">${escapeHtml(rivalsJoined || "-")}</span>
+            </p>
+          </div>
+
+          <div class="pt-1">
+            <div class="text-[11px] font-bold text-zinc-500 mb-1">ผังช่องแข่ง (${escapeHtml(ev.group)}):</div>
+            <div class="flex flex-wrap gap-1.5">
+              ${laneChipsHtml}
+            </div>
+          </div>
+        </div>
+
+        <div class="pt-2 border-t border-zinc-100 flex flex-wrap items-center justify-between gap-2 text-xs">
+          <div class="text-zinc-600 flex-1 min-w-[180px]">
+            ${
+              assignedNames.length > 0
+                ? `🏃 <strong class="text-zinc-800">นักกีฬา ส.ด.:</strong> ${escapeHtml(assignedNames.join(", "))}`
+                : `<span class="text-zinc-400 italic">ยังไม่ได้จัดตัวนักกีฬาลงรายการนี้</span>`
+            }
+          </div>
+          <button onclick="openLineupModal('${ev.id}')" class="px-2.5 py-1 rounded-lg bg-zinc-100 hover:bg-orange-100 text-zinc-800 hover:text-orange-800 border border-zinc-300 font-semibold">
+            ✏️ จัดตัว / แก้ไข
+          </button>
+        </div>
+      </div>
+    `;
+    })
+    .join("");
+};
+
+window.printMatchesSheet = function () {
+  const filtered = getFilteredMatchEvents();
+  const printArea = document.getElementById("matchesPrintArea");
+  if (!printArea) return;
+
+  const chunkSize = 18;
+  const chunks = [];
+  for (let i = 0; i < filtered.length; i += chunkSize) {
+    chunks.push(filtered.slice(i, i + chunkSize));
+  }
+  if (chunks.length === 0) chunks.push([]);
+
+  printArea.innerHTML = chunks
+    .map((chunk, pageIdx) => {
+      const rowsHtml = chunk
+        .map((ev) => {
+          const { rivalCount, rivalsJoined } = parseEventLanes(ev);
+          const assigned = (ev.athletes || [])
+            .filter((a) => a.studentId && !a.slotLabel.includes("สำรอง"))
+            .map((a) => studentsList.find((s) => s.id === a.studentId)?.shortName || "")
+            .filter(Boolean)
+            .join(", ");
+
+          return `
+          <tr>
+            <td class="border border-zinc-400 px-1.5 py-1 text-center font-semibold">${ev.no}</td>
+            <td class="border border-zinc-400 px-2 py-1 font-semibold">${escapeHtml(ev.name)}</td>
+            <td class="border border-zinc-400 px-1.5 py-1 text-center">${escapeHtml(ev.group)}</td>
+            <td class="border border-zinc-400 px-1.5 py-1 text-center font-bold text-orange-700">${escapeHtml(ev.lane)}</td>
+            <td class="border border-zinc-400 px-1.5 py-1 text-center">${ev.totalTeams} (${rivalCount} คู่แข่ง)</td>
+            <td class="border border-zinc-400 px-2 py-1 text-xs">${escapeHtml(rivalsJoined || "-")}</td>
+            <td class="border border-zinc-400 px-2 py-1 text-xs">${escapeHtml(assigned || "-")}</td>
+          </tr>
+        `;
+        })
+        .join("");
+
+      return `
+      <div class="a4-page">
+        <div>
+          <div class="flex justify-between items-center border-b-2 border-orange-600 pb-1.5 mb-2">
+            <span class="bg-zinc-800 text-white text-xs font-bold px-2.5 py-0.5 rounded">โรงเรียนบ้านส้อเด่นพัฒนา (ส.ด.)</span>
+            <span class="text-sm font-bold text-zinc-900">ตารางข้อมูลการแข่งขัน ช่องวิ่ง และโรงเรียนคู่แข่ง 2569</span>
+            <span class="text-xs font-semibold text-zinc-600">ผู้จัดทำ: <strong class="text-orange-700">ครูนภรัฐ อุดเต็น</strong></span>
+          </div>
+
+          <div class="master-banner px-4 py-1.5 flex justify-between items-center mb-2.5">
+            <div class="text-sm font-bold text-white">โพยสนาม เชียงกลางเกมส์ 3-4 ธ.ค. 2569 (หน้า ${pageIdx + 1}/${chunks.length})</div>
+            <div class="text-xs text-orange-100">รวม ${filtered.length} รายการ</div>
+          </div>
+
+          <table class="w-full border-collapse text-xs">
+            <thead>
+              <tr class="bg-zinc-800 text-white">
+                <th class="border border-zinc-800 px-1.5 py-1.5 w-8">ที่</th>
+                <th class="border border-zinc-800 px-2 py-1.5 w-44">รายการแข่งขัน</th>
+                <th class="border border-zinc-800 px-1.5 py-1.5 w-14">กรุ๊ป</th>
+                <th class="border border-zinc-800 px-1.5 py-1.5 w-14">ช่อง ส.ด.</th>
+                <th class="border border-zinc-800 px-1.5 py-1.5 w-20">ทีมทั้งหมด</th>
+                <th class="border border-zinc-800 px-2 py-1.5">โรงเรียนคู่แข่งร่วมกลุ่ม</th>
+                <th class="border border-zinc-800 px-2 py-1.5 w-40">นักกีฬา ส.ด. (ตัวจริง)</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml || `<tr><td colspan="7" class="border border-zinc-400 p-4 text-center text-zinc-400">ไม่มีรายการ</td></tr>`}
+            </tbody>
+          </table>
+        </div>
+        <div class="text-[10px] text-zinc-500 text-right pt-2">โรงเรียนบ้านส้อเด่นพัฒนา (ส.ด.) • ณ สนามกีฬาโรงเรียนพระพุทธบาทวิทยา</div>
+      </div>
+    `;
+    })
+    .join("");
+
+  document.body.dataset.printTarget = "matches";
+  window.print();
+};
+
+// ==================== TAB 5: PRINT A4 STUDIO (SEPARATED ROSTER + PACKED EVIDENCE) ====================
 window.printA4Documents = function () {
   document.body.dataset.printTarget = "a4";
   window.print();
